@@ -1,5 +1,5 @@
 import React from 'react';
-import elasticsearch from 'elasticsearch'
+import elasticsearch from 'elasticsearch';
 import {
   EuiPage,
   EuiPageHeader,
