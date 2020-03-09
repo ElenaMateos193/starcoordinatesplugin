@@ -1,5 +1,5 @@
 import React from 'react';
-import elasticsearch from 'elasticsearch';
+//import elasticsearch from 'elasticsearch';
 import {
   EuiPage,
   EuiPageHeader,
@@ -10,6 +10,8 @@ import {
   EuiPageContentBody,
   EuiText,
   EuiCheckboxGroup,
+  EuiFlexGroup,
+  EuiFlexItem
 } from '@elastic/eui';
 
 const checkboxes = [
@@ -30,7 +32,17 @@ const checkboxes = [
     label: 'Check Box 4',
   },
 ];
-
+class CoordinatePlane extends React.Component{
+  render(){
+    return(<div style={{
+    backgroundColor: '#ededed',
+    borderRadius: '1em',
+    minHeight: '30em'
+     }} class="col-6">
+      <span>But this item will.</span>
+    </div>);
+  }
+}
 
 export class Main extends React.Component {
   constructor(props) {
@@ -57,25 +69,24 @@ export class Main extends React.Component {
         <EuiPageBody>
           <EuiPageHeader>
             <EuiTitle size="l">
-              <h1>{title} Hello World!</h1>
+              <h1>{title}</h1>
             </EuiTitle>
           </EuiPageHeader>
           <EuiPageContent>
             <EuiPageContentHeader>
               <EuiTitle>
-                <h2>Congratulations</h2>
+                <h2></h2>
               </EuiTitle>
             </EuiPageContentHeader>
             <EuiPageContentBody>
-              <EuiText>
-                <h3>You have successfully created your first Kibana Plugin!</h3>
-                <p>The server time (via API call) is {this.state.time || 'NO API CALL YET'}</p>
-              </EuiText>
+              <CoordinatePlane></CoordinatePlane>
+              <div class="col-6">
               <EuiCheckboxGroup
                 options={checkboxes}
                 idToSelectedMap={this.state.checkboxIdToSelectedMap}
                 onChange={(optionId) => (this.onChange(optionId))}
               />
+              </div>
             </EuiPageContentBody>
           </EuiPageContent>
         </EuiPageBody>
