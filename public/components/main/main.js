@@ -11,7 +11,8 @@ import {
   EuiText,
   EuiCheckboxGroup,
   EuiFlexGroup,
-  EuiFlexItem
+  EuiFlexItem,
+  EuiTextArea
 } from '@elastic/eui';
 
 const checkboxes = [
@@ -79,14 +80,34 @@ export class Main extends React.Component {
               </EuiTitle>
             </EuiPageContentHeader>
             <EuiPageContentBody>
-              <CoordinatePlane></CoordinatePlane>
-              <div class="col-6">
-              <EuiCheckboxGroup
-                options={checkboxes}
-                idToSelectedMap={this.state.checkboxIdToSelectedMap}
-                onChange={(optionId) => (this.onChange(optionId))}
-              />
-              </div>
+            <EuiFlexGroup>
+              <EuiFlexItem>
+                <EuiTitle size="m">
+                  <h1>Holi</h1>
+                </EuiTitle>
+              </EuiFlexItem>
+            </EuiFlexGroup>
+            <EuiFlexGroup>
+              <EuiFlexItem grow={1} component="span">
+                Title:
+              </EuiFlexItem>
+              <EuiFlexItem grow={2}>
+                <EuiTextArea placeholder="your title">
+                </EuiTextArea>
+              </EuiFlexItem>
+            </EuiFlexGroup>
+            <EuiFlexGroup>
+              <EuiFlexItem>
+                <CoordinatePlane></CoordinatePlane>
+              </EuiFlexItem>
+              <EuiFlexItem>
+                <EuiCheckboxGroup
+                  options={checkboxes}
+                  idToSelectedMap={this.state.checkboxIdToSelectedMap}
+                  onChange={(optionId) => (this.onChange(optionId))}
+                />
+              </EuiFlexItem>
+            </EuiFlexGroup>
             </EuiPageContentBody>
           </EuiPageContent>
         </EuiPageBody>
