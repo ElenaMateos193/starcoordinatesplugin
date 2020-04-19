@@ -12,7 +12,8 @@ import {
   EuiCheckboxGroup,
   EuiFlexGroup,
   EuiFlexItem,
-  EuiTextArea
+  EuiTextArea,
+  EuiButton,
 } from '@elastic/eui';
 
 const checkboxes = [
@@ -34,14 +35,31 @@ const checkboxes = [
   },
 ];
 class CoordinatePlane extends React.Component{
+  renderAxis(count, count2){
+    var axis = (<circle cx={count} cy={count2} r="2"/>);
+    return axis;
+  }
   render(){
-    return(<div style={{
-    backgroundColor: '#ededed',
-    borderRadius: '1em',
-    minHeight: '30em'
-     }} class="col-6">
-      <span>But this item will.</span>
-    </div>);
+    var axes= [];
+    var count = 350;
+    var count2 = 150;
+    var axesCheckboxesSet = new Set(this.props.axesCheckboxes);
+    axesCheckboxesSet.forEach(element => {
+        axes.push(this.renderAxis(count, count2));
+        count = count + 30;
+        count2 = count2 + 30;
+      });
+    return(
+      <div style={{
+      backgroundColor: '#ededed',
+      borderRadius: '1em',
+      minHeight: '30em',
+      minWidth: '30em'
+      }} class="col-6">
+      <svg style={{width:'100%', height:'100%', minHeight: '30em',    minWidth: '30em'}}>
+        {axes}
+      </svg>
+      </div>);
   }
 }
 
@@ -49,17 +67,29 @@ export class Main extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      checkboxIdToSelectedMap: {
-      },
+      checkboxesAxesSet: new Set(),
+      axesCheckboxIdToSelectedMap: {},
     };
   }
   onChange(optionId) {
-    const newCheckboxIdToSelectedMap = {... this.state.checkboxIdToSelectedMap}
+    const newCheckboxIdToSelectedMap = {... this.state.axesCheckboxIdToSelectedMap}
 
-    newCheckboxIdToSelectedMap[optionId]= !newCheckboxIdToSelectedMap[optionId];
+    var newOptionValue = !newCheckboxIdToSelectedMap[optionId];
+
+    newCheckboxIdToSelectedMap[optionId]= newOptionValue;
+
+    var newSet = new Set(this.state.checkboxesAxesSet);
+
+    if(newOptionValue){
+      newSet.add(optionId);
+    }
+    else{
+      newSet.delete(optionId);
+    }
 
     this.setState({
-      checkboxIdToSelectedMap: newCheckboxIdToSelectedMap,
+      checkboxesAxesSet: newSet,
+      axesCheckboxIdToSelectedMap: newCheckboxIdToSelectedMap
     });
   };
 
@@ -95,15 +125,23 @@ export class Main extends React.Component {
                 <EuiTextArea placeholder="your title">
                 </EuiTextArea>
               </EuiFlexItem>
+              <EuiFlexItem gutterSize="s">
+                <EuiButton>
+                  Save
+                </EuiButton>
+              </EuiFlexItem>
             </EuiFlexGroup>
             <EuiFlexGroup>
               <EuiFlexItem>
-                <CoordinatePlane></CoordinatePlane>
+                <CoordinatePlane axesCheckboxes = {this.state.checkboxesAxesSet}></CoordinatePlane>
               </EuiFlexItem>
               <EuiFlexItem>
+              <EuiTitle>
+                <h4>Axes</h4>
+              </EuiTitle>
                 <EuiCheckboxGroup
                   options={checkboxes}
-                  idToSelectedMap={this.state.checkboxIdToSelectedMap}
+                  idToSelectedMap={this.state.axesCheckboxIdToSelectedMap}
                   onChange={(optionId) => (this.onChange(optionId))}
                 />
               </EuiFlexItem>
