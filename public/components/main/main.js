@@ -34,15 +34,48 @@ const checkboxes = [
     label: 'Check Box 4',
   },
 ];
+class Point {
+  constructor(x, y){
+    this.x= x;
+    this.y= y;
+  }
+}
 class CoordinatePlane extends React.Component{
+  
+  calculateAxisPositionFromCartessian(axisNumber, numberOfAxes){
+    var commonFormula = (2 * axisNumber * Math.PI)/numberOfAxes;
+    var xCoordinate = Math.cos(commonFormula);
+    var yCoordinate = Math.sin(commonFormula);
+    return new Point(xCoordinate, yCoordinate);
+  }
+
+  rotationOfCartessianAxes(cartessianPoint, newOrigin){
+    var newXCoordinate = cartessianPoint.x + newOrigin.x;
+    var newYCoordinate = cartessianPoint.y + newOrigin.y;
+    return new Point(newXCoordinate, newYCoordinate);
+  }
+
+  changeAxisLength(axisEndPoint, newLength){
+    var currentAxisLength = Math.sqrt(Math.pow(Math.abs(axisStartPoint.x - axisEndPoint.x), 2) + Math.pow(Math.abs(axisStartPoint.y - axisEndPoint.y), 2));
+
+    var actualNewLength = newLength / currentAxisLength;
+
+    var newAxisEndPoint = new Point(actualNewLength+axisEndPoint.x, actualNewLength + axisEndPoint.y);
+
+    return newAxisEndPoint;
+  }
+
   renderAxis(count, count2){
-    var axis = (<circle cx={count} cy={count2} r="2"/>);
+    var axis = (
+      <line x2="250" y2="250" x1={count} y1={count2} style={{stroke:'rgb(255,0,0)', strokeWidth:'2'}} />
+    /* <circle cx= cy={count2} r="2"/> */
+    );
     return axis;
   }
   render(){
     var axes= [];
-    var count = 350;
-    var count2 = 150;
+    var count = 10;
+    var count2 = 10;
     var axesCheckboxesSet = new Set(this.props.axesCheckboxes);
     axesCheckboxesSet.forEach(element => {
         axes.push(this.renderAxis(count, count2));
@@ -53,10 +86,11 @@ class CoordinatePlane extends React.Component{
       <div style={{
       backgroundColor: '#ededed',
       borderRadius: '1em',
-      minHeight: '30em',
-      minWidth: '30em'
+      height: '500px',
+      width: '500px',
+      alignSelf: 'center',
       }} class="col-6">
-      <svg style={{width:'100%', height:'100%', minHeight: '30em',    minWidth: '30em'}}>
+      <svg style={{width:'100%', height:'100%'}}>
         {axes}
       </svg>
       </div>);
