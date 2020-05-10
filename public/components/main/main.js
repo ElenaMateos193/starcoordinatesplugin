@@ -34,18 +34,29 @@ const checkboxes = [
     label: 'Check Box 4',
   },
 ];
+
 class Point {
   constructor(x, y){
     this.x= x;
     this.y= y;
   }
 }
+
+const planeOrigin = new Point(250, 250);
+
+
+class Axis {
+  constructor(active, axisX, axisY){
+    this.active = active;
+    this.axisEnd = new Point(axisX, axisY);
+  }
+}
 class CoordinatePlane extends React.Component{
   
   calculateAxisPositionFromCartessian(axisNumber, numberOfAxes){
     var commonFormula = (2 * axisNumber * Math.PI)/numberOfAxes;
-    var xCoordinate = Math.cos(commonFormula);
-    var yCoordinate = Math.sin(commonFormula);
+    var xCoordinate = Math.round(Math.cos(commonFormula)*100)/100;
+    var yCoordinate = Math.round(Math.sin(commonFormula)*100)/100;
     return new Point(xCoordinate, yCoordinate);
   }
 
@@ -55,33 +66,36 @@ class CoordinatePlane extends React.Component{
     return new Point(newXCoordinate, newYCoordinate);
   }
 
-  changeAxisLength(axisEndPoint, newLength){
+  changeAxisLength(axisStartPoint, axisEndPoint, newLength){
     var currentAxisLength = Math.sqrt(Math.pow(Math.abs(axisStartPoint.x - axisEndPoint.x), 2) + Math.pow(Math.abs(axisStartPoint.y - axisEndPoint.y), 2));
 
     var actualNewLength = newLength / currentAxisLength;
 
-    var newAxisEndPoint = new Point(actualNewLength+axisEndPoint.x, actualNewLength + axisEndPoint.y);
+    var newAxisEndPoint = new Point(actualNewLength*axisEndPoint.x, actualNewLength*axisEndPoint.y);
 
     return newAxisEndPoint;
   }
 
-  renderAxis(count, count2){
+  renderAxis(key, axisEndPoint){
     var axis = (
-      <line x2="250" y2="250" x1={count} y1={count2} style={{stroke:'rgb(255,0,0)', strokeWidth:'2'}} />
+      <line key={key} x2="250" y2="250" x1={axisEndPoint.x} y1={axisEndPoint.y} style={{stroke:'rgb(255,0,0)', strokeWidth:'2'}} />
     /* <circle cx= cy={count2} r="2"/> */
     );
     return axis;
   }
   render(){
     var axes= [];
-    var count = 10;
-    var count2 = 10;
-    var axesCheckboxesSet = new Set(this.props.axesCheckboxes);
-    axesCheckboxesSet.forEach(element => {
-        axes.push(this.renderAxis(count, count2));
-        count = count + 30;
-        count2 = count2 + 30;
-      });
+    var axesCheckboxesArray = this.props.axesCheckboxes.slice();
+    var axisNumber = 0;
+
+    axesCheckboxesArray.forEach(element => {
+        var axisEndPoint = this.calculateAxisPositionFromCartessian(axisNumber, axesCheckboxesArray.length);
+        axisEndPoint = this.changeAxisLength(new Point(0, 0), axisEndPoint, 100);
+        axisEndPoint = this.rotationOfCartessianAxes(axisEndPoint, planeOrigin);
+        axes.push(this.renderAxis(element, axisEndPoint));
+        axisNumber++;
+      }
+    );
     return(
       <div style={{
       backgroundColor: '#ededed',
@@ -89,8 +103,10 @@ class CoordinatePlane extends React.Component{
       height: '500px',
       width: '500px',
       alignSelf: 'center',
-      }} class="col-6">
+      }}>
       <svg style={{width:'100%', height:'100%'}}>
+        <line key={"xcoordinate"} x1="0" y1="250" x2="500" y2="250" style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
+        <line key={"ycoordinate"} x1="250" y1="0" x2="250" y2="500" style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
         {axes}
       </svg>
       </div>);
@@ -101,7 +117,7 @@ export class Main extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      checkboxesAxesSet: new Set(),
+      checkboxesAxesSet: new Array(),
       axesCheckboxIdToSelectedMap: {},
     };
   }
@@ -112,13 +128,13 @@ export class Main extends React.Component {
 
     newCheckboxIdToSelectedMap[optionId]= newOptionValue;
 
-    var newSet = new Set(this.state.checkboxesAxesSet);
+    var newSet = this.state.checkboxesAxesSet.slice();
 
     if(newOptionValue){
-      newSet.add(optionId);
+      newSet.push(optionId);
     }
     else{
-      newSet.delete(optionId);
+      newSet = newSet.filter(item => item!==optionId);
     }
 
     this.setState({
@@ -159,7 +175,7 @@ export class Main extends React.Component {
                 <EuiTextArea placeholder="your title">
                 </EuiTextArea>
               </EuiFlexItem>
-              <EuiFlexItem gutterSize="s">
+              <EuiFlexItem>
                 <EuiButton>
                   Save
                 </EuiButton>

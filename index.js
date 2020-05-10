@@ -13,10 +13,6 @@ export default function(kibana) {
         description: 'Star coordinates visualisations',
         main: 'plugins/starcoordinates/app',
       },
-      styleSheetPaths: [
-        resolve(__dirname, 'public/app.scss'),
-        resolve(__dirname, 'public/app.css'),
-      ].find(p => existsSync(p)),
     },
 
     config(Joi) {
