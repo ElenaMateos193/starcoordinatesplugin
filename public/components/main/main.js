@@ -1,6 +1,6 @@
 import React from 'react';
-// import math from 'mathjs';
-import elasticsearch from 'elasticsearch';
+//import math from 'mathjs';
+// import elasticsearch from 'elasticsearch';
 import {
   EuiPage,
   EuiPageHeader,
@@ -115,15 +115,26 @@ class CoordinatePlane extends React.Component{
     return newAxisEndPoint;
   }
 
-  // changeto2Dimensions(dataItem, axes){
-  //   var matrixForDataItem = math.matrix([[dataItem.c1], [dataItem.c2], [dataItem.c3], [dataItem.c4], [dataItem.c5], [dataItem.c6]]);
-  //   var matrixForAxes = math.matrix(axes);
-  //   var twoDimensions = math.multiply(matrixForAxes, matrixForDataItem);
-  //   var xCoordinate = math.subset(twoDimensions, math.index(0, 0));
-  //   var yCoordinate = math.subset(twoDimensions, math.index(1, 0));
-  //   var point = new Point(xCoordinate, yCoordinate);
-  //   return point;
-  // }
+  changeto2Dimensions(dataItem, axes){
+    var matrixForDataItem = [[dataItem.c1], [dataItem.c2], [dataItem.c3], [dataItem.c4], [dataItem.c5], [dataItem.c6]];
+    
+    var pointCoordinateAcc = 0;
+    var r = 0;
+    var pointR = 0;
+    var result = [[],[]];
+    axes.forEach(row => {
+        row.forEach(element =>{
+          pointCoordinateAcc = element * matrixForDataItem[r][0] + pointCoordinateAcc;
+          r++;
+        });
+        result[pointR][0] = pointCoordinateAcc;
+        pointCoordinateAcc = 0;
+        r = 0;
+        pointR++;
+    });
+    var point = new Point(result[0][0], result[1][0]);
+    return point;
+  }
 
   renderAxis(key, axisEndPoint){
     var axis = (
@@ -157,10 +168,10 @@ class CoordinatePlane extends React.Component{
       }
     );
 
-    // data.forEach(element=> {
-    //   var point = this.changeto2Dimensions(element, axesMatrix);
-    //   points.push(this.renderPoint(element.key, point));
-    // });
+    data.forEach(element=> {
+      var point = this.changeto2Dimensions(element, axesMatrix);
+      points.push(this.renderPoint(element.key, point));
+    });
     return(
       <div style={{
       backgroundColor: '#ededed',
@@ -226,7 +237,7 @@ export class Main extends React.Component {
               </EuiTitle>
             </EuiPageContentHeader>
             <EuiPageContentBody>
-            <EuiFlexGroup>
+            {/* <EuiFlexGroup>
               <EuiFlexItem>
                 <EuiTitle size="m">
                   <h1>Holi</h1>
@@ -246,7 +257,7 @@ export class Main extends React.Component {
                   Save
                 </EuiButton>
               </EuiFlexItem>
-            </EuiFlexGroup>
+            </EuiFlexGroup> */}
             <EuiFlexGroup>
               <EuiFlexItem>
                 <CoordinatePlane axesCheckboxes = {this.state.checkboxesAxesSet}></CoordinatePlane>
