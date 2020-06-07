@@ -1,5 +1,5 @@
 import React from 'react';
-//import math from 'mathjs';
+import mathjs from 'mathjs';
 // import elasticsearch from 'elasticsearch';
 import {
   EuiPage,
@@ -115,25 +115,35 @@ class CoordinatePlane extends React.Component{
     return newAxisEndPoint;
   }
 
-  changeto2Dimensions(dataItem, axes){
-    var matrixForDataItem = [[dataItem.c1], [dataItem.c2], [dataItem.c3], [dataItem.c4], [dataItem.c5], [dataItem.c6]];
-    
-    var pointCoordinateAcc = 0;
-    var r = 0;
-    var pointR = 0;
-    var result = [[],[]];
-    axes.forEach(row => {
-        row.forEach(element =>{
-          pointCoordinateAcc = element * matrixForDataItem[r][0] + pointCoordinateAcc;
-          r++;
-        });
-        result[pointR][0] = pointCoordinateAcc;
-        pointCoordinateAcc = 0;
-        r = 0;
-        pointR++;
+  transformDataToMatrix(data){
+    var arrayMatrix = [[]];
+
+    data.forEach(dataItem => {
+      var row = [dataItem.c1, dataItem.c2, dataItem.c3, dataItem.c4, dataItem.c5, dataItem.c6];
+      arrayMatrix.push(row);
     });
-    var point = new Point(result[0][0], result[1][0]);
-    return point;
+
+    var matrix = math.transpose(arrayMatrix);
+    return matrix;
+  }
+
+  changeto2Dimensions(data, axes){
+    var matrixForDataItem = this.transformDataToMatrix(data);
+    var axesMatrix = math.matrix(axes);
+    var twoDimensions = math.multiply(axesMatrix, matrixForDataItem);
+    return twoDimensions;
+  }
+
+  transformToPoints(matrix, data){
+    var points = [];
+    var n = 0;
+    data.forEach(dataItem => {
+      var pointCoordinates = math.subset(matrix, math.index([0,1], n));
+      var newPoint = new Point(pointCoordinates[0][0], pointCoordinates[1][0]);
+      points.push(this.renderPoint(dataItem.key, newPoint));
+      n++;
+    });
+    return points;
   }
 
   renderAxis(key, axisEndPoint){
@@ -168,10 +178,8 @@ class CoordinatePlane extends React.Component{
       }
     );
 
-    data.forEach(element=> {
-      var point = this.changeto2Dimensions(element, axesMatrix);
-      points.push(this.renderPoint(element.key, point));
-    });
+    var pointsToRender = this.changeto2Dimensions(data, axesMatrix);
+    points = this.transformToPoints(pointsToRender, data);
     return(
       <div style={{
       backgroundColor: '#ededed',

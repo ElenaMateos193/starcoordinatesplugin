@@ -32,5 +32,8 @@
     "eslint-plugin-no-unsanitized": "^3.0.2",
     "eslint-plugin-prefer-object-spread": "^1.2.1",
     "eslint-plugin-react": "^7.12.4"
+  },
+  "dependencies": {
+    "mathjs": "^7.0.1"
   }
 }
