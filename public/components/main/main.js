@@ -1,5 +1,5 @@
 import React from 'react';
-import mathjs from 'mathjs';
+import * as math from 'mathjs';
 // import elasticsearch from 'elasticsearch';
 import {
   EuiPage,
@@ -116,7 +116,7 @@ class CoordinatePlane extends React.Component{
   }
 
   transformDataToMatrix(data){
-    var arrayMatrix = [[]];
+    var arrayMatrix = [];
 
     data.forEach(dataItem => {
       var row = [dataItem.c1, dataItem.c2, dataItem.c3, dataItem.c4, dataItem.c5, dataItem.c6];
