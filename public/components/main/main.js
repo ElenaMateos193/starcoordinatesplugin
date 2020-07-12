@@ -21,26 +21,32 @@ const checkboxes = [
   {
     id: 'checkBox1',
     label: 'Check Box 1',
+    position: 1,
   },
   {
     id: 'checkBox2',
     label: 'Check Box 2',
+    position: 2,
   },
   {
     id: 'checkBox3',
     label: 'Check Box 3',
+    position: 3,
   },
   {
     id: 'checkBox4',
     label: 'Check Box 4',
+    position: 4,
   },
   {
     id: 'checkBox5',
     label: 'Check Box 5',
+    position: 5,
   },
   {
     id: 'checkBox6',
     label: 'Check Box 6',
+    position: 6,
   },
 ];
 
@@ -129,8 +135,7 @@ class CoordinatePlane extends React.Component{
 
   changeto2Dimensions(data, axes){
     var matrixForDataItem = this.transformDataToMatrix(data);
-    var axesMatrix = math.matrix(axes);
-    var twoDimensions = math.multiply(axesMatrix, matrixForDataItem);
+    var twoDimensions = math.multiply(axes, matrixForDataItem);
     return twoDimensions;
   }
 
@@ -138,7 +143,7 @@ class CoordinatePlane extends React.Component{
     var points = [];
     var n = 0;
     data.forEach(dataItem => {
-      var pointCoordinates = math.subset(matrix, math.index([0,1], n));
+      var pointCoordinates = math.subset(matrix, matrix.index([0,1], n));
       var newPoint = new Point(pointCoordinates[0][0], pointCoordinates[1][0]);
       points.push(this.renderPoint(dataItem.key, newPoint));
       n++;
@@ -163,23 +168,34 @@ class CoordinatePlane extends React.Component{
   render(){
     var axes= [];
     var points = [];
-    var axesMatrix = [[], []];
+    var axesMatrix = [];
+    var dataMatrix = [];
     var axesCheckboxesArray = this.props.axesCheckboxes.slice();
     var axisNumber = 0;
 
+    if(this.props.axesCheckboxes.length <=0){
+      return null;
+    }
+
     axesCheckboxesArray.forEach(element => {
+        var axisPosition = this.checkboxes.filter(checkbox => checkbox.Id==element).Position; 
         var axisEndPoint = this.calculateAxisPositionFromCartessian(axisNumber, axesCheckboxesArray.length);
         axisEndPoint = this.changeAxisLength(new Point(0, 0), axisEndPoint, 100);
         axisEndPoint = this.rotationOfCartessianAxes(axisEndPoint, planeOrigin);
-        axesMatrix[0].push(axisEndPoint.x);
-        axesMatrix[1].push(axisEndPoint.y);
+        if(axesMatrix.length <=0){
+          axesMatrix.push([axisEndPoint.x]);
+          axesMatrix.push([axisEndPoint.y]);
+        }else{
+          axesMatrix[0].push([axisEndPoint.x]);
+          axesMatrix[1].push([axisEndPoint.y]);
+        }
         axes.push(this.renderAxis(element, axisEndPoint));
         axisNumber++;
       }
     );
 
-    var pointsToRender = this.changeto2Dimensions(data, axesMatrix);
-    points = this.transformToPoints(pointsToRender, data);
+    //var pointsToRender = this.changeto2Dimensions(data, axesMatrix);
+    //points = this.transformToPoints(pointsToRender, data);
     return(
       <div style={{
       backgroundColor: '#ededed',
@@ -202,7 +218,7 @@ export class Main extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      checkboxesAxesSet: new Array(),
+      checkboxesAxesSet: [],
       axesCheckboxIdToSelectedMap: {},
     };
   }
