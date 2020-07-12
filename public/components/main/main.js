@@ -16,37 +16,38 @@ import {
   EuiTextArea,
   EuiButton,
 } from '@elastic/eui';
+import axe from 'axe-core';
 
 const checkboxes = [
   {
     id: 'checkBox1',
     label: 'Check Box 1',
-    position: 1,
+    position: 0,
   },
   {
     id: 'checkBox2',
     label: 'Check Box 2',
-    position: 2,
+    position: 1,
   },
   {
     id: 'checkBox3',
     label: 'Check Box 3',
-    position: 3,
+    position: 2,
   },
   {
     id: 'checkBox4',
     label: 'Check Box 4',
-    position: 4,
+    position: 3,
   },
   {
     id: 'checkBox5',
     label: 'Check Box 5',
-    position: 5,
+    position: 4,
   },
   {
     id: 'checkBox6',
     label: 'Check Box 6',
-    position: 6,
+    position: 5,
   },
 ];
 
@@ -134,8 +135,7 @@ class CoordinatePlane extends React.Component{
   }
 
   changeto2Dimensions(data, axes){
-    var matrixForDataItem = this.transformDataToMatrix(data);
-    var twoDimensions = math.multiply(axes, matrixForDataItem);
+    var twoDimensions = math.multiply(axes, data);
     return twoDimensions;
   }
 
@@ -143,8 +143,9 @@ class CoordinatePlane extends React.Component{
     var points = [];
     var n = 0;
     data.forEach(dataItem => {
-      var pointCoordinates = math.subset(matrix, matrix.index([0,1], n));
+      var pointCoordinates = math.subset(matrix, math.index([0,1], n));
       var newPoint = new Point(pointCoordinates[0][0], pointCoordinates[1][0]);
+      newPoint = this.rotationOfCartessianAxes(newPoint, planeOrigin);
       points.push(this.renderPoint(dataItem.key, newPoint));
       n++;
     });
@@ -160,7 +161,7 @@ class CoordinatePlane extends React.Component{
 
   renderPoint(key, point){
     var point = (
-      <circle key={key} cx={point.x} cy={point.y} style={{stroke:'rgb(255,0,0)', strokeWidth:'2'}} />
+      <circle key={key} cx={point.x} cy={point.y} stroke={"green"} strokeWidth={"2"} r={"1"} />
     );
     return point;
   }
@@ -169,6 +170,7 @@ class CoordinatePlane extends React.Component{
     var axes= [];
     var points = [];
     var axesMatrix = [];
+    var axesActivePositions = [];
     var dataMatrix = [];
     var axesCheckboxesArray = this.props.axesCheckboxes.slice();
     var axisNumber = 0;
@@ -177,25 +179,35 @@ class CoordinatePlane extends React.Component{
       return null;
     }
 
+    axesCheckboxesArray = axesCheckboxesArray.sort();
+
     axesCheckboxesArray.forEach(element => {
-        var axisPosition = this.checkboxes.filter(checkbox => checkbox.Id==element).Position; 
+        var axisPosition = checkboxes.filter(checkbox => checkbox.id==element)[0].position; 
+        axesActivePositions.push(axisPosition);
         var axisEndPoint = this.calculateAxisPositionFromCartessian(axisNumber, axesCheckboxesArray.length);
-        axisEndPoint = this.changeAxisLength(new Point(0, 0), axisEndPoint, 100);
-        axisEndPoint = this.rotationOfCartessianAxes(axisEndPoint, planeOrigin);
+        axisEndPoint = this.changeAxisLength(new Point(0, 0), axisEndPoint, 50);
+        var axisEndPointRotation = this.rotationOfCartessianAxes(axisEndPoint, planeOrigin);
         if(axesMatrix.length <=0){
           axesMatrix.push([axisEndPoint.x]);
           axesMatrix.push([axisEndPoint.y]);
         }else{
-          axesMatrix[0].push([axisEndPoint.x]);
-          axesMatrix[1].push([axisEndPoint.y]);
+          axesMatrix[0].push(axisEndPoint.x);
+          axesMatrix[1].push(axisEndPoint.y);
         }
-        axes.push(this.renderAxis(element, axisEndPoint));
+        axes.push(this.renderAxis(element, axisEndPointRotation));
         axisNumber++;
       }
     );
 
-    //var pointsToRender = this.changeto2Dimensions(data, axesMatrix);
-    //points = this.transformToPoints(pointsToRender, data);
+    var originalMatrix = this.transformDataToMatrix(data)
+
+    axesActivePositions.forEach(position => {
+      dataMatrix.push(originalMatrix[position]);
+    })
+
+    var pointsToRender = this.changeto2Dimensions(dataMatrix, axesMatrix);
+
+    points = this.transformToPoints(pointsToRender, data);
     return(
       <div style={{
       backgroundColor: '#ededed',
