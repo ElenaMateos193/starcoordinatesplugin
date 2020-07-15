@@ -16,7 +16,6 @@ import {
   EuiTextArea,
   EuiButton,
 } from '@elastic/eui';
-import axe from 'axe-core';
 
 const checkboxes = [
   {
@@ -211,14 +210,15 @@ class CoordinatePlane extends React.Component{
     return(
       <div style={{
       backgroundColor: '#ededed',
-      borderRadius: '1em',
-      height: '500px',
-      width: '500px',
-      alignSelf: 'center',
+      height: '1000px',
+      width: '1000px',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
       }}>
-      <svg style={{width:'100%', height:'100%'}}>
-        <line key={"xcoordinate"} x1="0" y1="250" x2="500" y2="250" style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
-        <line key={"ycoordinate"} x1="250" y1="0" x2="250" y2="500" style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
+      <svg style={{width:'500px', height:'500px', overflow:'visible'}}>
+        <line key={"xcoordinate"} x1="750" y1="250" x2="-250" y2="250" style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
+        <line key={"ycoordinate"} x1="250" y1="-250" x2="250" y2="750" style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
         {axes}
         {points}
       </svg>
