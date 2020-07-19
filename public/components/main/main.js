@@ -1,6 +1,5 @@
 import React from 'react';
 import * as math from 'mathjs';
-// import elasticsearch from 'elasticsearch';
 import {
   EuiPage,
   EuiPageHeader,
@@ -16,6 +15,7 @@ import {
   EuiTextArea,
   EuiButton,
 } from '@elastic/eui';
+
 
 const checkboxes = [
   {
@@ -49,8 +49,6 @@ const checkboxes = [
     position: 5,
   },
 ];
-
-
 
 class Point {
   constructor(x, y){
@@ -255,6 +253,13 @@ export class Main extends React.Component {
       axesCheckboxIdToSelectedMap: newCheckboxIdToSelectedMap
     });
   };
+
+  componentDidMount(){
+    const {httpClient} = this.props;
+    httpClient.get('../api/starcoordinates/example').then((resp) => {
+      console.log(resp.data.body.hits.hits);
+    })
+  }
 
   render() {
     const { title } = this.props;
