@@ -12,9 +12,10 @@ import {
   EuiCheckboxGroup,
   EuiFlexGroup,
   EuiFlexItem,
-  EuiTextArea,
   EuiButton,
+  EuiSelect,
 } from '@elastic/eui';
+import { EuiFlexGrid } from '@elastic/eui';
 
 
 const checkboxes = [
@@ -230,8 +231,20 @@ export class Main extends React.Component {
     this.state = {
       checkboxesAxesSet: [],
       axesCheckboxIdToSelectedMap: {},
+      indices: [],
+      selectedIndexName: '',
+      selectedIndex: {}
     };
   }
+
+  transformIndicesToOptions(){
+    var options = [];
+    options.push({value: '', text: 'Select'});
+    this.state.indices.forEach(index => options.push({value: index, text:index}));
+
+    return options;
+  }
+
   onChange(optionId) {
     const newCheckboxIdToSelectedMap = {... this.state.axesCheckboxIdToSelectedMap}
 
@@ -254,15 +267,82 @@ export class Main extends React.Component {
     });
   };
 
+  onChangeSelect(index){
+    this.setState({
+      selectedIndexName: index.target.value
+    });
+  }
+
+
+  onChangeButton(){
+    const {httpClient} = this.props;
+    var url = '../api/starcoordinates/example/getIndexInfo/' + this.state.selectedIndexName;
+    httpClient.get(url).then((resp)=>{
+      console.log(resp);
+      this.setState({
+        selectedIndex: resp.data.body
+      });
+    })
+  }
+
   componentDidMount(){
     const {httpClient} = this.props;
-    httpClient.get('../api/starcoordinates/example').then((resp) => {
-      console.log(resp.data.body.hits.hits);
-    })
+    httpClient.get('../api/starcoordinates/example/getIndices').then((resp) => {
+      console.log(resp.data.body);
+      var indices = resp.data.body;
+      var finalIndices = [];
+      indices.forEach(index => {
+        if(index.index.charAt(0) !== '.'){
+          finalIndices.push(index.index);
+        }
+      });
+      this.setState({
+        indices: finalIndices
+      });
+    });
+  }
+
+  renderProperty(property){
+    return(
+    <EuiFlexItem>
+      {property}
+    </EuiFlexItem>
+    );
+  }
+
+  renderIndex(){
+    var properties = [];
+    var index = this.state.selectedIndex[this.state.selectedIndexName];
+    var propertiesNames = Object.keys(index.mappings.properties);
+    propertiesNames.forEach(property=>{
+      if (index.mappings.properties[property].type === "double"){
+        properties.push(this.renderProperty(property));
+      }
+    });
+
+    return(
+      <div>
+         <EuiFlexGroup>
+        <EuiFlexItem>
+          The index {this.state.selectedIndexName} has the following numeric properties:
+        </EuiFlexItem>
+      </EuiFlexGroup>
+      <EuiFlexGroup>
+          {properties}
+      </EuiFlexGroup>
+      </div>
+    );
   }
 
   render() {
     const { title } = this.props;
+    var index;
+    var properties = Object.keys(this.state.selectedIndex);
+    if(properties.length> 0){
+      index = this.renderIndex();
+    }else{
+      index= null;
+    }
     return (
       <EuiPage>
         <EuiPageBody>
@@ -278,27 +358,29 @@ export class Main extends React.Component {
               </EuiTitle>
             </EuiPageContentHeader>
             <EuiPageContentBody>
-            {/* <EuiFlexGroup>
-              <EuiFlexItem>
-                <EuiTitle size="m">
-                  <h1>Holi</h1>
-                </EuiTitle>
-              </EuiFlexItem>
+            <EuiFlexGroup>
+            <EuiFlexItem>
+              <EuiText>
+                Select the index you want to work with
+              </EuiText>
+            </EuiFlexItem>
+            <EuiFlexItem>
+              <EuiSelect options={this.transformIndicesToOptions()} onChange={e => this.onChangeSelect(e)}>
+              </EuiSelect>
+            </EuiFlexItem>
+            <EuiFlexItem>
+              <EuiButton
+                size="s"
+                isDisabled={this.state.selectedIndexName === ''}
+                fill
+                onClick={() => this.onChangeButton()}> 
+                Start
+              </EuiButton>
+            </EuiFlexItem>
             </EuiFlexGroup>
             <EuiFlexGroup>
-              <EuiFlexItem grow={1} component="span">
-                Title:
-              </EuiFlexItem>
-              <EuiFlexItem grow={2}>
-                <EuiTextArea placeholder="your title">
-                </EuiTextArea>
-              </EuiFlexItem>
-              <EuiFlexItem>
-                <EuiButton>
-                  Save
-                </EuiButton>
-              </EuiFlexItem>
-            </EuiFlexGroup> */}
+              {index}
+            </EuiFlexGroup>
             <EuiFlexGroup>
               <EuiFlexItem>
                 <CoordinatePlane axesCheckboxes = {this.state.checkboxesAxesSet}></CoordinatePlane>
