@@ -17,40 +17,6 @@ import {
 } from '@elastic/eui';
 import { EuiFlexGrid } from '@elastic/eui';
 
-
-const checkboxes = [
-  {
-    id: 'checkBox1',
-    label: 'Check Box 1',
-    position: 0,
-  },
-  {
-    id: 'checkBox2',
-    label: 'Check Box 2',
-    position: 1,
-  },
-  {
-    id: 'checkBox3',
-    label: 'Check Box 3',
-    position: 2,
-  },
-  {
-    id: 'checkBox4',
-    label: 'Check Box 4',
-    position: 3,
-  },
-  {
-    id: 'checkBox5',
-    label: 'Check Box 5',
-    position: 4,
-  },
-  {
-    id: 'checkBox6',
-    label: 'Check Box 6',
-    position: 5,
-  },
-];
-
 class Point {
   constructor(x, y){
     this.x= x;
@@ -180,7 +146,7 @@ class CoordinatePlane extends React.Component{
     axesCheckboxesArray = axesCheckboxesArray.sort();
 
     axesCheckboxesArray.forEach(element => {
-        var axisPosition = checkboxes.filter(checkbox => checkbox.id==element)[0].position; 
+        var axisPosition = this.props.indexProperties.filter(property => property.id==element)[0].position; 
         axesActivePositions.push(axisPosition);
         var axisEndPoint = this.calculateAxisPositionFromCartessian(axisNumber, axesCheckboxesArray.length);
         axisEndPoint = this.changeAxisLength(new Point(0, 0), axisEndPoint, 50);
@@ -310,38 +276,33 @@ export class Main extends React.Component {
     );
   }
 
-  renderIndex(){
+  getProperties(){
     var properties = [];
+    var position = 0;
     var index = this.state.selectedIndex[this.state.selectedIndexName];
     var propertiesNames = Object.keys(index.mappings.properties);
     propertiesNames.forEach(property=>{
       if (index.mappings.properties[property].type === "double"){
-        properties.push(this.renderProperty(property));
+        properties.push({
+          id: property,
+          label : property,
+          position: position
+        });
+        position ++;
       }
     });
 
-    return(
-      <div>
-         <EuiFlexGroup>
-        <EuiFlexItem>
-          The index {this.state.selectedIndexName} has the following numeric properties:
-        </EuiFlexItem>
-      </EuiFlexGroup>
-      <EuiFlexGroup>
-          {properties}
-      </EuiFlexGroup>
-      </div>
-    );
+    return properties;
   }
 
   render() {
     const { title } = this.props;
-    var index;
+    var indexProperties;
     var properties = Object.keys(this.state.selectedIndex);
     if(properties.length> 0){
-      index = this.renderIndex();
+      indexProperties = this.getProperties();
     }else{
-      index= null;
+      indexProperties= [];
     }
     return (
       <EuiPage>
@@ -379,18 +340,15 @@ export class Main extends React.Component {
             </EuiFlexItem>
             </EuiFlexGroup>
             <EuiFlexGroup>
-              {index}
-            </EuiFlexGroup>
-            <EuiFlexGroup>
               <EuiFlexItem>
-                <CoordinatePlane axesCheckboxes = {this.state.checkboxesAxesSet}></CoordinatePlane>
+                <CoordinatePlane axesCheckboxes = {this.state.checkboxesAxesSet} indexProperties={indexProperties}></CoordinatePlane>
               </EuiFlexItem>
               <EuiFlexItem>
               <EuiTitle>
                 <h4>Axes</h4>
               </EuiTitle>
                 <EuiCheckboxGroup
-                  options={checkboxes}
+                  options={indexProperties}
                   idToSelectedMap={this.state.axesCheckboxIdToSelectedMap}
                   onChange={(optionId) => (this.onChange(optionId))}
                 />
