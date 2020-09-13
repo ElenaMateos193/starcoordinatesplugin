@@ -59,5 +59,23 @@ export default function (server){
       return {body: resp}
     }
   });
+
+  server.route({
+    path:'/api/starcoordinates/example/getFirst1000/{index}',
+    method: 'GET',
+    handler: async function (req, res){
+      var index = req.params.index
+      let resp = {}
+      try{
+        resp = await callWithRequest(req, 'search', {
+          index: index,
+          size: 1000
+        })
+      } catch (errResp){
+        resp = errResp
+      }
+      return {body: resp}
+    }
+  });
  }
   

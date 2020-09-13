@@ -15,7 +15,9 @@ import {
   EuiButton,
   EuiSelect,
 } from '@elastic/eui';
-import { EuiFlexGrid } from '@elastic/eui';
+import { forEach } from 'lodash';
+
+const numericEsTypes = ["long", "integer", "short", "double", "float", "half_float", "scaled_float"];
 
 class Point {
   constructor(x, y){
@@ -86,16 +88,25 @@ class CoordinatePlane extends React.Component{
     return newAxisEndPoint;
   }
 
-  transformDataToMatrix(data){
+  transformDataToMatrix(docs, axesProperties){
     var arrayMatrix = [];
-
-    data.forEach(dataItem => {
-      var row = [dataItem.c1, dataItem.c2, dataItem.c3, dataItem.c4, dataItem.c5, dataItem.c6];
-      arrayMatrix.push(row);
+    var ids = [];
+    docs.forEach(doc => {
+      var row = [];
+      axesProperties.forEach(axis =>{
+        var value = doc[axis];
+        if(value !== undefined && value!== null){
+          row.push(doc[axis]);
+        }
+      })
+      if(row.length == axesProperties.length){//this means we've got a full row, every property has value
+        arrayMatrix.push(row);
+        ids.push(doc.SongID);//THIS ID MUST BE PICKED BY THE USER
+      }
     });
 
     var matrix = math.transpose(arrayMatrix);
-    return matrix;
+    return {Matrix: matrix, Ids: ids};
   }
 
   changeto2Dimensions(data, axes){
@@ -103,14 +114,14 @@ class CoordinatePlane extends React.Component{
     return twoDimensions;
   }
 
-  transformToPoints(matrix, data){
+  transformToPoints(matrix, ids){
     var points = [];
     var n = 0;
-    data.forEach(dataItem => {
+    ids.forEach(id => {
       var pointCoordinates = math.subset(matrix, math.index([0,1], n));
       var newPoint = new Point(pointCoordinates[0][0], pointCoordinates[1][0]);
       newPoint = this.rotationOfCartessianAxes(newPoint, planeOrigin);
-      points.push(this.renderPoint(dataItem.key, newPoint));
+      points.push(this.renderPoint(id, newPoint));
       n++;
     });
     return points;
@@ -135,7 +146,6 @@ class CoordinatePlane extends React.Component{
     var points = [];
     var axesMatrix = [];
     var axesActivePositions = [];
-    var dataMatrix = [];
     var axesCheckboxesArray = this.props.axesCheckboxes.slice();
     var axisNumber = 0;
 
@@ -162,16 +172,14 @@ class CoordinatePlane extends React.Component{
         axisNumber++;
       }
     );
+    
+    var matrixAndIds = this.transformDataToMatrix(this.props.indexDocs, axesCheckboxesArray);
 
-    var originalMatrix = this.transformDataToMatrix(data)
+    var originalMatrix = matrixAndIds.Matrix;
 
-    axesActivePositions.forEach(position => {
-      dataMatrix.push(originalMatrix[position]);
-    })
+    var pointsToRender = this.changeto2Dimensions(originalMatrix, axesMatrix);
 
-    var pointsToRender = this.changeto2Dimensions(dataMatrix, axesMatrix);
-
-    points = this.transformToPoints(pointsToRender, data);
+    points = this.transformToPoints(pointsToRender, matrixAndIds.Ids);
     return(
       <div style={{
       backgroundColor: '#ededed',
@@ -199,14 +207,16 @@ export class Main extends React.Component {
       axesCheckboxIdToSelectedMap: {},
       indices: [],
       selectedIndexName: '',
-      selectedIndex: {}
+      selectedIndex: {},
+      selectedIndexDocs: [],
+      selectedIdProperty:'',
     };
   }
 
-  transformIndicesToOptions(){
+  transformIndicesToOptions(list){
     var options = [];
     options.push({value: '', text: 'Select'});
-    this.state.indices.forEach(index => options.push({value: index, text:index}));
+    list.forEach(index => options.push({value: index, text:index}));
 
     return options;
   }
@@ -239,16 +249,35 @@ export class Main extends React.Component {
     });
   }
 
+  onChangeSelectIdProperty(property){
+    this.setState({
+      selectedIdProperty: property.target.value
+    });
+  }
+
 
   onChangeButton(){
     const {httpClient} = this.props;
     var url = '../api/starcoordinates/example/getIndexInfo/' + this.state.selectedIndexName;
     httpClient.get(url).then((resp)=>{
-      console.log(resp);
       this.setState({
         selectedIndex: resp.data.body
       });
-    })
+    });
+  }
+
+  onChangeIdSelectedButton(){
+    const {httpClient} = this.props;
+    var url = '../api/starcoordinates/example/getFirst1000/' + this.state.selectedIndexName;
+    httpClient.get(url).then((resp) => {
+      console.log(resp);
+      var docs = [];
+      var docsFromEs = resp.data.body.hits.hits;
+      docsFromEs.forEach(doc => {
+        docs.push(doc._source);
+      });
+      this.setState({selectedIndexDocs: docs});
+    });
   }
 
   componentDidMount(){
@@ -276,13 +305,22 @@ export class Main extends React.Component {
     );
   }
 
-  getProperties(){
+  getProperties(onlyNumeric){
     var properties = [];
     var position = 0;
     var index = this.state.selectedIndex[this.state.selectedIndexName];
     var propertiesNames = Object.keys(index.mappings.properties);
     propertiesNames.forEach(property=>{
-      if (index.mappings.properties[property].type === "double"){
+      if(onlyNumeric){
+        if (numericEsTypes.includes(index.mappings.properties[property].type)){
+          properties.push({
+            id: property,
+            label : property,
+            position: position
+          });
+          position ++;
+        }
+      }else{
         properties.push({
           id: property,
           label : property,
@@ -290,19 +328,48 @@ export class Main extends React.Component {
         });
         position ++;
       }
+      
     });
 
     return properties;
   }
 
+  renderAllIndexProperties(allProperties){
+    if(this.state.selectedIndexName!=="" && !(Object.keys(this.state.selectedIndex).length === 0 && this.state.selectedIndex.constructor === Object)){
+      return(<EuiFlexGroup>
+        <EuiFlexItem>
+          <EuiText>
+            Select the property to be the id for the points
+          </EuiText>
+        </EuiFlexItem>
+        <EuiFlexItem>
+          <EuiSelect options={this.transformIndicesToOptions(allProperties)} onChange={e => this.onChangeSelectIdProperty(e)}>
+          </EuiSelect>
+        </EuiFlexItem>
+        <EuiFlexItem>
+          <EuiButton
+            size="s"
+            isDisabled={this.state.selectedIdProperty === ''}
+            fill
+            onClick={() => this.onChangeIdSelectedButton()}> 
+            Start
+          </EuiButton>
+        </EuiFlexItem>
+      </EuiFlexGroup>);
+    }
+  }
+
   render() {
     const { title } = this.props;
     var indexProperties;
+    var allProperties;
     var properties = Object.keys(this.state.selectedIndex);
     if(properties.length> 0){
-      indexProperties = this.getProperties();
-    }else{
+      indexProperties = this.getProperties(true);
+      allProperties = this.getProperties(false);
+    } else{
       indexProperties= [];
+      allProperties= [];
     }
     return (
       <EuiPage>
@@ -320,28 +387,29 @@ export class Main extends React.Component {
             </EuiPageContentHeader>
             <EuiPageContentBody>
             <EuiFlexGroup>
-            <EuiFlexItem>
-              <EuiText>
-                Select the index you want to work with
-              </EuiText>
-            </EuiFlexItem>
-            <EuiFlexItem>
-              <EuiSelect options={this.transformIndicesToOptions()} onChange={e => this.onChangeSelect(e)}>
-              </EuiSelect>
-            </EuiFlexItem>
-            <EuiFlexItem>
-              <EuiButton
-                size="s"
-                isDisabled={this.state.selectedIndexName === ''}
-                fill
-                onClick={() => this.onChangeButton()}> 
-                Start
-              </EuiButton>
-            </EuiFlexItem>
+              <EuiFlexItem>
+                <EuiText>
+                  Select the index you want to work with
+                </EuiText>
+              </EuiFlexItem>
+              <EuiFlexItem>
+                <EuiSelect options={this.transformIndicesToOptions(this.state.indices)} onChange={e => this.onChangeSelect(e)}>
+                </EuiSelect>
+              </EuiFlexItem>
+              <EuiFlexItem>
+                <EuiButton
+                  size="s"
+                  isDisabled={this.state.selectedIndexName === ''}
+                  fill
+                  onClick={() => this.onChangeButton()}> 
+                  Start
+                </EuiButton>
+              </EuiFlexItem>
             </EuiFlexGroup>
+            {this.renderAllIndexProperties(allProperties)}
             <EuiFlexGroup>
               <EuiFlexItem>
-                <CoordinatePlane axesCheckboxes = {this.state.checkboxesAxesSet} indexProperties={indexProperties}></CoordinatePlane>
+                <CoordinatePlane axesCheckboxes = {this.state.checkboxesAxesSet} indexProperties={indexProperties} indexDocs={this.state.selectedIndexDocs}></CoordinatePlane>
               </EuiFlexItem>
               <EuiFlexItem>
               <EuiTitle>
