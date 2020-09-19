@@ -14,8 +14,8 @@ import {
   EuiFlexItem,
   EuiButton,
   EuiSelect,
+  EuiCheckbox,
 } from '@elastic/eui';
-import { forEach } from 'lodash';
 
 const numericEsTypes = ["long", "integer", "short", "double", "float", "half_float", "scaled_float"];
 
@@ -29,40 +29,8 @@ class Point {
   }
 }
 
-class DataItem {
-  constructor(key, c1, c2, c3, c4, c5, c6){
-    this.key = key;
-    this.c1= c1;
-    this.c2= c2;
-    this.c3= c3;
-    this.c4= c4;
-    this.c5= c5;
-    this.c6= c6;
-  }
-}
-
-const data = [
-  new DataItem("data1",4, 4, 8, 2, 10, 1),
-  new DataItem("data2",2, 16, 3, 3, 1, 4),
-  new DataItem("data3",6, 1, 2, 6, 4, 3),
-  new DataItem("data4",5, 6, 7, 7, 5, 3),
-  new DataItem("data5",4, 3, 11, 0, 13, 2),
-  new DataItem("data6",6, 5, 0, 9, 4, 7),
-  new DataItem("data7",12, 6, 3, 3, 8, 5),
-  new DataItem("data8",3, 2, 1, 4, 9, 11),
-  new DataItem("data9",9, 10, 5, 4, 0, 1),
-];
-
-
 const planeOrigin = new Point(250, 250);
 
-
-class Axis {
-  constructor(active, axisX, axisY){
-    this.active = active;
-    this.axisEnd = new Point(axisX, axisY);
-  }
-}
 class CoordinatePlane extends React.Component{
   
   calculateAxisPositionFromCartessian(axisNumber, numberOfAxes){
@@ -88,7 +56,7 @@ class CoordinatePlane extends React.Component{
     return newAxisEndPoint;
   }
 
-  transformDataToMatrix(docs, axesProperties){
+  transformDataToMatrix(docs, axesProperties, idProperty){
     var arrayMatrix = [];
     var ids = [];
     docs.forEach(doc => {
@@ -101,7 +69,7 @@ class CoordinatePlane extends React.Component{
       })
       if(row.length == axesProperties.length){//this means we've got a full row, every property has value
         arrayMatrix.push(row);
-        ids.push(doc.SongID);//THIS ID MUST BE PICKED BY THE USER
+        ids.push(doc[idProperty]);
       }
     });
 
@@ -149,7 +117,7 @@ class CoordinatePlane extends React.Component{
     var axesCheckboxesArray = this.props.axesCheckboxes.slice();
     var axisNumber = 0;
 
-    if(this.props.axesCheckboxes.length <=0){
+    if(this.props.axesCheckboxes.length <=0 || this.props.idProperty === ''){
       return null;
     }
 
@@ -159,7 +127,7 @@ class CoordinatePlane extends React.Component{
         var axisPosition = this.props.indexProperties.filter(property => property.id==element)[0].position; 
         axesActivePositions.push(axisPosition);
         var axisEndPoint = this.calculateAxisPositionFromCartessian(axisNumber, axesCheckboxesArray.length);
-        axisEndPoint = this.changeAxisLength(new Point(0, 0), axisEndPoint, 50);
+        axisEndPoint = this.changeAxisLength(new Point(0, 0), axisEndPoint, 100);
         var axisEndPointRotation = this.rotationOfCartessianAxes(axisEndPoint, planeOrigin);
         if(axesMatrix.length <=0){
           axesMatrix.push([axisEndPoint.x]);
@@ -173,9 +141,28 @@ class CoordinatePlane extends React.Component{
       }
     );
     
-    var matrixAndIds = this.transformDataToMatrix(this.props.indexDocs, axesCheckboxesArray);
+    var matrixAndIds = this.transformDataToMatrix(this.props.indexDocs, axesCheckboxesArray, this.props.idProperty);
 
     var originalMatrix = matrixAndIds.Matrix;
+
+    if(this.props.normalize){
+      var normalizedMatrix = [];
+      
+      for (var m = 0; m < originalMatrix.length; m++) {
+        var element = originalMatrix[m];
+        var rowMax = math.max(element);
+        var rowMin = math.min(element);
+        var normalizedRow= [];
+        for (var n = 0; n < element.length; n++) {
+          var cell = element[n];
+          var normalizedCell = (cell-rowMin) / (rowMax-rowMin);
+          normalizedRow.push(normalizedCell);
+        }
+        normalizedMatrix.push(normalizedRow);
+      }
+
+      originalMatrix = normalizedMatrix;
+    }
 
     var pointsToRender = this.changeto2Dimensions(originalMatrix, axesMatrix);
 
@@ -200,8 +187,8 @@ class CoordinatePlane extends React.Component{
 }
 
 export class Main extends React.Component {
-  constructor(props) {
-    super(props);
+  constructor() {
+    super();
     this.state = {
       checkboxesAxesSet: [],
       axesCheckboxIdToSelectedMap: {},
@@ -210,6 +197,7 @@ export class Main extends React.Component {
       selectedIndex: {},
       selectedIndexDocs: [],
       selectedIdProperty:'',
+      normalizeDataEnabled: false,
     };
   }
 
@@ -217,6 +205,14 @@ export class Main extends React.Component {
     var options = [];
     options.push({value: '', text: 'Select'});
     list.forEach(index => options.push({value: index, text:index}));
+
+    return options;
+  }
+
+  transformPropertiesToOptions(list){
+    var options = [];
+    options.push({value: '', text: 'Select'});
+    list.forEach(index => options.push({value: index.id, text:index.label}));
 
     return options;
   }
@@ -343,7 +339,7 @@ export class Main extends React.Component {
           </EuiText>
         </EuiFlexItem>
         <EuiFlexItem>
-          <EuiSelect options={this.transformIndicesToOptions(allProperties)} onChange={e => this.onChangeSelectIdProperty(e)}>
+          <EuiSelect options={this.transformPropertiesToOptions(allProperties)} onChange={e => this.onChangeSelectIdProperty(e)}>
           </EuiSelect>
         </EuiFlexItem>
         <EuiFlexItem>
@@ -356,6 +352,28 @@ export class Main extends React.Component {
           </EuiButton>
         </EuiFlexItem>
       </EuiFlexGroup>);
+    }
+    else{
+      return;
+    }
+  }
+
+  renderAxes(indexProperties){
+    if(this.state.selectedIdProperty!== '' && this.state.selectedIndexDocs.length >0){
+      return(
+          <EuiFlexItem>
+          <EuiTitle>
+            <h4>Axes</h4>
+          </EuiTitle>
+            <EuiCheckboxGroup
+              options={indexProperties}
+              idToSelectedMap={this.state.axesCheckboxIdToSelectedMap}
+              onChange={(optionId) => (this.onChange(optionId))}
+            />
+          </EuiFlexItem>);
+    }
+    else{
+      return;
     }
   }
 
@@ -397,6 +415,14 @@ export class Main extends React.Component {
                 </EuiSelect>
               </EuiFlexItem>
               <EuiFlexItem>
+                <EuiCheckbox
+                  id={"normalizeCheckbox"}
+                  label="Normalize Data (MinMaxScaler)"
+                  checked={this.state.normalizeDataEnabled}
+                  onChange ={() => this.setState({normalizeDataEnabled: !this.state.normalizeDataEnabled})}
+                />
+              </EuiFlexItem>
+              <EuiFlexItem>
                 <EuiButton
                   size="s"
                   isDisabled={this.state.selectedIndexName === ''}
@@ -409,18 +435,9 @@ export class Main extends React.Component {
             {this.renderAllIndexProperties(allProperties)}
             <EuiFlexGroup>
               <EuiFlexItem>
-                <CoordinatePlane axesCheckboxes = {this.state.checkboxesAxesSet} indexProperties={indexProperties} indexDocs={this.state.selectedIndexDocs}></CoordinatePlane>
+                <CoordinatePlane normalize={this.state.normalizeDataEnabled} idProperty={this.state.selectedIdProperty} axesCheckboxes = {this.state.checkboxesAxesSet} indexProperties={indexProperties} indexDocs={this.state.selectedIndexDocs}></CoordinatePlane>
               </EuiFlexItem>
-              <EuiFlexItem>
-              <EuiTitle>
-                <h4>Axes</h4>
-              </EuiTitle>
-                <EuiCheckboxGroup
-                  options={indexProperties}
-                  idToSelectedMap={this.state.axesCheckboxIdToSelectedMap}
-                  onChange={(optionId) => (this.onChange(optionId))}
-                />
-              </EuiFlexItem>
+              {this.renderAxes(indexProperties)}
             </EuiFlexGroup>
             </EuiPageContentBody>
           </EuiPageContent>
