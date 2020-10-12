@@ -35,6 +35,9 @@
   },
   "dependencies": {
     "@elastic/elasticsearch": "^7.8.0",
-    "mathjs": "^7.0.1"
+    "bootstrap": "^4.5.2",
+    "mathjs": "^7.0.1",
+    "react-draggable": "^4.4.3",
+    "react-lineto": "^3.2.0"
   }
 }

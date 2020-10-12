@@ -15,6 +15,7 @@ import {
   EuiButton,
   EuiSelect,
   EuiCheckbox,
+  EuiToolTip,
 } from '@elastic/eui';
 
 const numericEsTypes = ["long", "integer", "short", "double", "float", "half_float", "scaled_float"];
@@ -29,11 +30,20 @@ class Point {
   }
 }
 
-const planeOrigin = new Point(250, 250);
+const planeOrigin = new Point(500, 500);
 
 class CoordinatePlane extends React.Component{
   
-  calculateAxisPositionFromCartessian(axisNumber, numberOfAxes){
+  constructor(){
+    super();
+    this.state = {
+      activeAxis: "",
+      manuallyChangedAxesEndPointsList: []
+    };
+    // this.handleDivClick = this.handleDivClick.bind(this);
+  }
+
+  calculateInitialAxisPositionFromCartessian(axisNumber, numberOfAxes){
     var commonFormula = (2 * axisNumber * Math.PI)/numberOfAxes;
     var xCoordinate = Math.round(Math.cos(commonFormula)*100)/100;
     var yCoordinate = Math.round(Math.sin(commonFormula)*100)/100;
@@ -97,7 +107,8 @@ class CoordinatePlane extends React.Component{
 
   renderAxis(key, axisEndPoint){
     var axis = (
-      <line key={key} x2="250" y2="250" x1={axisEndPoint.x} y1={axisEndPoint.y} style={{stroke:'rgb(255,0,0)', strokeWidth:'2'}} />
+      <line onClick={(e) => this.handleAxisClick(key, e)} key={key} x1="500" y1="500" x2={axisEndPoint.x} y2={axisEndPoint.y} style={{stroke:'rgb(255,0,0)', strokeWidth:'5'}} >
+      </line>
     );
     return axis;
   }
@@ -109,11 +120,29 @@ class CoordinatePlane extends React.Component{
     return point;
   }
 
+  handleAxisClick(key, e){
+    e.stopPropagation(); 
+    this.setState({activeAxis: key});
+    console.log(this.state.activeAxis);
+  }
+
+  handleRepositioningClick(e){
+    if(this.state.activeAxis!== ""){
+      const clickEvent = e.nativeEvent;
+      var filteredCopy = this.state.manuallyChangedAxesEndPointsList.filter(axis => axis.key !== this.state.activeAxis);
+      var copy = filteredCopy.concat({key: this.state.activeAxis, endPoint:  new Point(clickEvent.offsetX, clickEvent.offsetY)});
+      this.setState({activeAxis: "", manuallyChangedAxesEndPointsList: copy});
+    }
+  }
+
+  resetAxes(){
+    this.setState({manuallyChangedAxesEndPointsList: []});
+  }
+
   render(){
     var axes= [];
     var points = [];
     var axesMatrix = [];
-    var axesActivePositions = [];
     var axesCheckboxesArray = this.props.axesCheckboxes.slice();
     var axisNumber = 0;
 
@@ -121,22 +150,33 @@ class CoordinatePlane extends React.Component{
       return null;
     }
 
+    // var filteredCopy = this.state.manuallyChangedAxesEndPointsList.filter(axis => axesCheckboxesArray.includes(axis.key));
+    // this.setState({manuallyChangedAxesEndPointsList: filteredCopy});
     axesCheckboxesArray = axesCheckboxesArray.sort();
-
     axesCheckboxesArray.forEach(element => {
-        var axisPosition = this.props.indexProperties.filter(property => property.id==element)[0].position; 
-        axesActivePositions.push(axisPosition);
-        var axisEndPoint = this.calculateAxisPositionFromCartessian(axisNumber, axesCheckboxesArray.length);
-        axisEndPoint = this.changeAxisLength(new Point(0, 0), axisEndPoint, 100);
-        var axisEndPointRotation = this.rotationOfCartessianAxes(axisEndPoint, planeOrigin);
-        if(axesMatrix.length <=0){
-          axesMatrix.push([axisEndPoint.x]);
-          axesMatrix.push([axisEndPoint.y]);
+        var changedAxis = this.state.manuallyChangedAxesEndPointsList.filter(axis => axis.key === element);
+        if(changedAxis.length >0){
+          if(axesMatrix.length <=0){
+            axesMatrix.push([changedAxis[0].endPoint.x-planeOrigin.x]);//the matrix must have the origin set to 0,0
+            axesMatrix.push([changedAxis[0].endPoint.y-planeOrigin.y]);
+          }else{
+            axesMatrix[0].push(changedAxis[0].endPoint.x-planeOrigin.x);
+            axesMatrix[1].push(changedAxis[0].endPoint.y-planeOrigin.y);
+          }
+          axes.push(this.renderAxis(element, changedAxis[0].endPoint));
         }else{
-          axesMatrix[0].push(axisEndPoint.x);
-          axesMatrix[1].push(axisEndPoint.y);
+          var axisEndPoint = this.calculateInitialAxisPositionFromCartessian(axisNumber, axesCheckboxesArray.length);
+          axisEndPoint = this.changeAxisLength(new Point(0, 0), axisEndPoint, 100);
+          var axisEndPointRotation = this.rotationOfCartessianAxes(axisEndPoint, planeOrigin);
+          if(axesMatrix.length <=0){
+            axesMatrix.push([axisEndPoint.x]);
+            axesMatrix.push([axisEndPoint.y]);
+          }else{
+            axesMatrix[0].push(axisEndPoint.x);
+            axesMatrix[1].push(axisEndPoint.y);
+          }
+          axes.push(this.renderAxis(element, axisEndPointRotation));
         }
-        axes.push(this.renderAxis(element, axisEndPointRotation));
         axisNumber++;
       }
     );
@@ -168,20 +208,25 @@ class CoordinatePlane extends React.Component{
 
     points = this.transformToPoints(pointsToRender, matrixAndIds.Ids);
     return(
-      <div style={{
-      backgroundColor: '#ededed',
-      height: '1000px',
-      width: '1000px',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      }}>
-      <svg style={{width:'500px', height:'500px', overflow:'visible'}}>
-        <line key={"xcoordinate"} x1="750" y1="250" x2="-250" y2="250" style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
-        <line key={"ycoordinate"} x1="250" y1="-250" x2="250" y2="750" style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
-        {axes}
-        {points}
-      </svg>
+      <div>
+        <div id="canvas" onClick={(e) => this.handleRepositioningClick(e)} style={{
+        backgroundColor: '#ededed',
+        height: '1000px',
+        width: '1000px',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        }}>
+        <svg style={{width:'1000px', height:'1000px', overflow:'visible'}}>
+          <line onClick={(e) => this.handleRepositioningClick(e)} key={"xcoordinate"} x1="0" y1="500" x2="1000" y2="500" style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
+          <line onClick={(e) => this.handleRepositioningClick(e)} key={"ycoordinate"} x1="500" y1="0" x2="500" y2="1000" style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
+          {axes}
+          {points}
+        </svg>
+        </div>
+        <div style={{display: 'flex', justifyContent: 'right', marginTop: '0.5em'}}>
+        <EuiButton onClick={() => this.resetAxes()} fill>Reset Axes</EuiButton>
+        </div>
       </div>);
   }
 }
