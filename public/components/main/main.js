@@ -107,15 +107,40 @@ class CoordinatePlane extends React.Component{
 
   renderAxis(key, axisEndPoint){
     var axis = (
+      <svg>
       <line onClick={(e) => this.handleAxisClick(key, e)} key={key} x1="500" y1="500" x2={axisEndPoint.x} y2={axisEndPoint.y} style={{stroke:'rgb(255,0,0)', strokeWidth:'5'}} >
       </line>
+      <title>{key}</title>
+      </svg>
     );
     return axis;
   }
 
+  renderAxisTag(key, axisEndPoint){
+    var decrementX = key.length * 4
+    var decrementY = 10;
+    if(axisEndPoint.y <=   planeOrigin.y){
+      decrementY = decrementY * (-1)
+    }
+    var tag = (
+      <text key={key + 'Tag'} fill="blue" x={axisEndPoint.x - decrementX} y={axisEndPoint.y + decrementY}>{key}</text>
+    );
+    return tag;
+  }
+
   renderPoint(key, point){
+    var pointData= this.props.indexDocs.filter(doc => doc[this.props.idProperty]=== key)[0];
+    var data = '';
+    if(pointData){
+      this.props.axesCheckboxes.forEach(axis => {
+        data = data + ' ' + axis + ': ' + pointData[axis];
+      });
+    }
     var point = (
-      <circle key={key} cx={point.x} cy={point.y} stroke={"green"} strokeWidth={"2"} r={"1"} />
+      <svg>
+      <circle key={key} cx={point.x} cy={point.y} stroke={"green"} strokeWidth={"3"} r={"1.5"} />
+      <title>{data}</title>
+      </svg>
     );
     return point;
   }
@@ -141,6 +166,7 @@ class CoordinatePlane extends React.Component{
 
   render(){
     var axes= [];
+    var tags= [];
     var points = [];
     var axesMatrix = [];
     var axesCheckboxesArray = this.props.axesCheckboxes.slice();
@@ -164,6 +190,7 @@ class CoordinatePlane extends React.Component{
             axesMatrix[1].push(changedAxis[0].endPoint.y-planeOrigin.y);
           }
           axes.push(this.renderAxis(element, changedAxis[0].endPoint));
+          tags.push(this.renderAxisTag(element, changedAxis[0].endPoint));
         }else{
           var axisEndPoint = this.calculateInitialAxisPositionFromCartessian(axisNumber, axesCheckboxesArray.length);
           axisEndPoint = this.changeAxisLength(new Point(0, 0), axisEndPoint, 100);
@@ -176,6 +203,7 @@ class CoordinatePlane extends React.Component{
             axesMatrix[1].push(axisEndPoint.y);
           }
           axes.push(this.renderAxis(element, axisEndPointRotation));
+          tags.push(this.renderAxisTag(element, axisEndPointRotation));
         }
         axisNumber++;
       }
@@ -186,22 +214,15 @@ class CoordinatePlane extends React.Component{
     var originalMatrix = matrixAndIds.Matrix;
 
     if(this.props.normalize){
-      var normalizedMatrix = [];
-      
-      for (var m = 0; m < originalMatrix.length; m++) {
-        var element = originalMatrix[m];
-        var rowMax = math.max(element);
-        var rowMin = math.min(element);
-        var normalizedRow= [];
-        for (var n = 0; n < element.length; n++) {
-          var cell = element[n];
-          var normalizedCell = (cell-rowMin) / (rowMax-rowMin);
-          normalizedRow.push(normalizedCell);
-        }
-        normalizedMatrix.push(normalizedRow);
+      var normalizedMatrix = []
+      if(this.props.normalize === "1"){
+        normalizedMatrix = this.minMaxNormalization(originalMatrix);
+        originalMatrix = normalizedMatrix;
       }
-
-      originalMatrix = normalizedMatrix;
+      else if(this.props.normalize === "2"){
+        normalizedMatrix = this.normalDistribution(originalMatrix);
+        originalMatrix = normalizedMatrix;
+      }
     }
 
     var pointsToRender = this.changeto2Dimensions(originalMatrix, axesMatrix);
@@ -221,6 +242,7 @@ class CoordinatePlane extends React.Component{
           <line onClick={(e) => this.handleRepositioningClick(e)} key={"xcoordinate"} x1="0" y1="500" x2="1000" y2="500" style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
           <line onClick={(e) => this.handleRepositioningClick(e)} key={"ycoordinate"} x1="500" y1="0" x2="500" y2="1000" style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
           {axes}
+          {/* {tags} */}
           {points}
         </svg>
         </div>
@@ -228,6 +250,39 @@ class CoordinatePlane extends React.Component{
         <EuiButton onClick={() => this.resetAxes()} fill>Reset Axes</EuiButton>
         </div>
       </div>);
+  }
+
+  minMaxNormalization(originalMatrix) {
+    var normalizedMatrix = [];
+
+    for (var m = 0; m < originalMatrix.length; m++) {
+      var element = originalMatrix[m];
+      var rowMax = math.max(element);
+      var rowMin = math.min(element);
+      var normalizedRow = [];
+      for (var n = 0; n < element.length; n++) {
+        var cell = element[n];
+        var normalizedCell = (cell - rowMin) / (rowMax - rowMin);
+        normalizedRow.push(normalizedCell);
+      }
+      normalizedMatrix.push(normalizedRow);
+    }
+    return normalizedMatrix;
+  }
+
+  normalDistribution(originalMatrix) {
+    var normalizedMatrix = [];
+    originalMatrix.forEach(row => {
+      var rowMean = math.mean(row);
+      var rowStd = math.std(row);
+      var normalizedRow = [];
+      row.forEach(cell => {
+        var normalizedCell = (cell - rowMean) / rowStd;
+        normalizedRow.push(normalizedCell);
+      });
+      normalizedMatrix.push(normalizedRow);
+    });
+    return normalizedMatrix;
   }
 }
 
@@ -242,7 +297,7 @@ export class Main extends React.Component {
       selectedIndex: {},
       selectedIndexDocs: [],
       selectedIdProperty:'',
-      normalizeDataEnabled: false,
+      selectedNormalization: ''
     };
   }
 
@@ -293,6 +348,12 @@ export class Main extends React.Component {
   onChangeSelectIdProperty(property){
     this.setState({
       selectedIdProperty: property.target.value
+    });
+  }
+
+  onChangeSelectNormalization(normalization){
+    this.setState({
+      selectedNormalization: normalization.target.value
     });
   }
 
@@ -369,7 +430,6 @@ export class Main extends React.Component {
         });
         position ++;
       }
-      
     });
 
     return properties;
@@ -460,12 +520,13 @@ export class Main extends React.Component {
                 </EuiSelect>
               </EuiFlexItem>
               <EuiFlexItem>
-                <EuiCheckbox
-                  id={"normalizeCheckbox"}
-                  label="Normalize Data (MinMaxScaler)"
-                  checked={this.state.normalizeDataEnabled}
-                  onChange ={() => this.setState({normalizeDataEnabled: !this.state.normalizeDataEnabled})}
-                />
+                <EuiText>
+                  Select the normalization you want to apply
+                </EuiText>
+              </EuiFlexItem>
+              <EuiFlexItem>
+                <EuiSelect options={[{value: 0, text: "None"}, {value: 1, text: "MinMaxScaler"}, {value: 2, text: "Normal Distribution(mean 0, std 1)"}]} onChange={e => this.onChangeSelectNormalization(e)}>
+                </EuiSelect>
               </EuiFlexItem>
               <EuiFlexItem>
                 <EuiButton
@@ -480,7 +541,7 @@ export class Main extends React.Component {
             {this.renderAllIndexProperties(allProperties)}
             <EuiFlexGroup>
               <EuiFlexItem>
-                <CoordinatePlane normalize={this.state.normalizeDataEnabled} idProperty={this.state.selectedIdProperty} axesCheckboxes = {this.state.checkboxesAxesSet} indexProperties={indexProperties} indexDocs={this.state.selectedIndexDocs}></CoordinatePlane>
+                <CoordinatePlane normalize={this.state.selectedNormalization} idProperty={this.state.selectedIdProperty} axesCheckboxes = {this.state.checkboxesAxesSet} indexProperties={indexProperties} indexDocs={this.state.selectedIndexDocs}></CoordinatePlane>
               </EuiFlexItem>
               {this.renderAxes(indexProperties)}
             </EuiFlexGroup>
