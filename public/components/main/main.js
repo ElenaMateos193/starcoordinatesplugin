@@ -15,7 +15,7 @@ import {
   EuiButton,
   EuiSelect,
   EuiCheckbox,
-  EuiToolTip,
+  EuiFieldNumber
 } from '@elastic/eui';
 
 const numericEsTypes = ["long", "integer", "short", "double", "float", "half_float", "scaled_float"];
@@ -110,7 +110,7 @@ class CoordinatePlane extends React.Component{
       <svg>
       <line onClick={(e) => this.handleAxisClick(key, e)} key={key} x1="500" y1="500" x2={axisEndPoint.x} y2={axisEndPoint.y} style={{stroke:'rgb(255,0,0)', strokeWidth:'5'}} >
       </line>
-      <title>{key}</title>
+      <title>{key + '. x: ' + Math.trunc(axisEndPoint.x) + ' y: ' + Math.trunc(axisEndPoint.y)}</title>
       </svg>
     );
     return axis;
@@ -287,6 +287,8 @@ class CoordinatePlane extends React.Component{
 }
 
 export class Main extends React.Component {
+  interlvalID = null;
+
   constructor() {
     super();
     this.state = {
@@ -297,7 +299,10 @@ export class Main extends React.Component {
       selectedIndex: {},
       selectedIndexDocs: [],
       selectedIdProperty:'',
-      selectedNormalization: ''
+      selectedNormalization: '',
+      refreshDataEnabled: false,
+      refreshDataMins: 0,
+      allNeededPropertiesSetted: false
     };
   }
 
@@ -368,9 +373,14 @@ export class Main extends React.Component {
     });
   }
 
-  onChangeIdSelectedButton(){
+  onChangeStart(){
+    this.setState({allNeededPropertiesSetted : true});
+    this.getDocsFromES(100);
+  }
+
+  getDocsFromES(size){
     const {httpClient} = this.props;
-    var url = '../api/starcoordinates/example/getFirst1000/' + this.state.selectedIndexName;
+    var url = '../api/starcoordinates/example/get?index' + this.state.selectedIndexName + '&size=' + size;
     httpClient.get(url).then((resp) => {
       console.log(resp);
       var docs = [];
@@ -379,17 +389,29 @@ export class Main extends React.Component {
         docs.push(doc._source);
       });
       this.setState({selectedIndexDocs: docs});
+      if(this.state.refreshDataEnabled && this.state.refreshDataMins > 0)
+        this.intervalID = setTimeout(this.getDocsFromES.bind(this,size + 100), this.state.refreshDataMins*60*1000);
     });
   }
 
   componentDidMount(){
+    if(this.state.selectedIndexName === ""){
+      this.getIndexes();
+    }
+  }
+
+  componentWillUnmount(){
+    clearTimeout(this.interlvalID);
+  }
+
+  getIndexes() {
     const {httpClient} = this.props;
     httpClient.get('../api/starcoordinates/example/getIndices').then((resp) => {
       console.log(resp.data.body);
       var indices = resp.data.body;
       var finalIndices = [];
       indices.forEach(index => {
-        if(index.index.charAt(0) !== '.'){
+        if (index.index.charAt(0) !== '.') {
           finalIndices.push(index.index);
         }
       });
@@ -436,7 +458,10 @@ export class Main extends React.Component {
   }
 
   renderAllIndexProperties(allProperties){
-    if(this.state.selectedIndexName!=="" && !(Object.keys(this.state.selectedIndex).length === 0 && this.state.selectedIndex.constructor === Object)){
+    if(!this.state.allNeededPropertiesSetted &&
+      this.state.selectedIndexName!=="" && 
+      !(Object.keys(this.state.selectedIndex).length === 0 && 
+      this.state.selectedIndex.constructor === Object)){
       return(<EuiFlexGroup>
         <EuiFlexItem>
           <EuiText>
@@ -452,7 +477,7 @@ export class Main extends React.Component {
             size="s"
             isDisabled={this.state.selectedIdProperty === ''}
             fill
-            onClick={() => this.onChangeIdSelectedButton()}> 
+            onClick={() => this.onChangeStart()}> 
             Start
           </EuiButton>
         </EuiFlexItem>
@@ -476,6 +501,66 @@ export class Main extends React.Component {
               onChange={(optionId) => (this.onChange(optionId))}
             />
           </EuiFlexItem>);
+    }
+    else{
+      return;
+    }
+  }
+  renderRefreshDataMinsFieldNumber(){
+    if(this.state.refreshDataEnabled){
+      return(
+              <EuiFlexItem>
+                <EuiFieldNumber
+                  placeholder="Number of minutes to fetch for new data"
+                  value={this.state.refreshDataMins}
+                  onChange={(e) => {this.setState({refreshDataMins: parseInt(e.target.value)})}}
+                />
+              </EuiFlexItem>);
+    }
+    else{
+      return;
+    }
+  }
+  renderInitProperties(){
+    if(!this.state.allNeededPropertiesSetted){
+      return(<EuiFlexGroup>
+              <EuiFlexItem>
+                <EuiText>
+                  Select the index you want to work with
+                </EuiText>
+              </EuiFlexItem>
+              <EuiFlexItem>
+                <EuiSelect options={this.transformIndicesToOptions(this.state.indices)} onChange={e => this.onChangeSelect(e)}>
+                </EuiSelect>
+              </EuiFlexItem>
+              <EuiFlexItem>
+                <EuiText>
+                  Select the normalization you want to apply
+                </EuiText>
+              </EuiFlexItem>
+              <EuiFlexItem>
+                <EuiSelect options={[{value: 0, text: "None"}, {value: 1, text: "MinMaxScaler"}, {value: 2, text: "Normal Distribution(mean 0, std 1)"}]} onChange={e => this.onChangeSelectNormalization(e)}>
+                </EuiSelect>
+              </EuiFlexItem>
+              <EuiFlexItem>
+                <EuiCheckbox
+                    id={"refreshDataCheckbox"}
+                    label="Refresh data every 15 seconds"
+                    checked={this.state.refreshDataEnabled}
+                    onChange ={() => this.setState({refreshDataEnabled: !this.state.refreshDataEnabled})}
+                  />
+              </EuiFlexItem>
+              {this.renderRefreshDataMinsFieldNumber()}
+              <EuiFlexItem>
+                <EuiButton
+                  size="s"
+                  isDisabled={this.state.selectedIndexName === ''}
+                  fill
+                  onClick={() => this.onChangeButton()}> 
+                  Start
+                </EuiButton>
+              </EuiFlexItem>
+            </EuiFlexGroup>);
     }
     else{
       return;
@@ -509,35 +594,7 @@ export class Main extends React.Component {
               </EuiTitle>
             </EuiPageContentHeader>
             <EuiPageContentBody>
-            <EuiFlexGroup>
-              <EuiFlexItem>
-                <EuiText>
-                  Select the index you want to work with
-                </EuiText>
-              </EuiFlexItem>
-              <EuiFlexItem>
-                <EuiSelect options={this.transformIndicesToOptions(this.state.indices)} onChange={e => this.onChangeSelect(e)}>
-                </EuiSelect>
-              </EuiFlexItem>
-              <EuiFlexItem>
-                <EuiText>
-                  Select the normalization you want to apply
-                </EuiText>
-              </EuiFlexItem>
-              <EuiFlexItem>
-                <EuiSelect options={[{value: 0, text: "None"}, {value: 1, text: "MinMaxScaler"}, {value: 2, text: "Normal Distribution(mean 0, std 1)"}]} onChange={e => this.onChangeSelectNormalization(e)}>
-                </EuiSelect>
-              </EuiFlexItem>
-              <EuiFlexItem>
-                <EuiButton
-                  size="s"
-                  isDisabled={this.state.selectedIndexName === ''}
-                  fill
-                  onClick={() => this.onChangeButton()}> 
-                  Start
-                </EuiButton>
-              </EuiFlexItem>
-            </EuiFlexGroup>
+            {this.renderInitProperties()}
             {this.renderAllIndexProperties(allProperties)}
             <EuiFlexGroup>
               <EuiFlexItem>

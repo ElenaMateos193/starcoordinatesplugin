@@ -61,15 +61,14 @@ export default function (server){
   });
 
   server.route({
-    path:'/api/starcoordinates/example/getFirst1000/{index}',
+    path:'/api/starcoordinates/example/get',
     method: 'GET',
     handler: async function (req, res){
-      var index = req.params.index
       let resp = {}
       try{
         resp = await callWithRequest(req, 'search', {
-          index: index,
-          size: 1000
+          index: req.query.index,
+          size: req.query.size
         })
       } catch (errResp){
         resp = errResp
