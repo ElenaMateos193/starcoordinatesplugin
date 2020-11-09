@@ -107,7 +107,7 @@ class CoordinatePlane extends React.Component{
 
   renderAxis(key, axisEndPoint){
     var axis = (
-      <svg>
+      <svg  key={key + 'Svg'}>
       <line onClick={(e) => this.handleAxisClick(key, e)} key={key} x1="500" y1="500" x2={axisEndPoint.x} y2={axisEndPoint.y} style={{stroke:'rgb(255,0,0)', strokeWidth:'5'}} >
       </line>
       <title>{key + '. x: ' + Math.trunc(axisEndPoint.x) + ' y: ' + Math.trunc(axisEndPoint.y)}</title>
@@ -118,7 +118,7 @@ class CoordinatePlane extends React.Component{
 
   renderAxisTag(key, axisEndPoint){
     var decrementX = key.length * 4
-    var decrementY = 10;
+    var decrementY = 10;  
     if(axisEndPoint.y <=   planeOrigin.y){
       decrementY = decrementY * (-1)
     }
@@ -137,7 +137,7 @@ class CoordinatePlane extends React.Component{
       });
     }
     var point = (
-      <svg>
+      <svg key={key + 'Svg'}>
       <circle key={key} cx={point.x} cy={point.y} stroke={"green"} strokeWidth={"3"} r={"1.5"} />
       <title>{data}</title>
       </svg>
@@ -380,7 +380,7 @@ export class Main extends React.Component {
 
   getDocsFromES(size){
     const {httpClient} = this.props;
-    var url = '../api/starcoordinates/example/get?index' + this.state.selectedIndexName + '&size=' + size;
+    var url = '../api/starcoordinates/example/get?index=' + this.state.selectedIndexName + '&size=' + size;
     httpClient.get(url).then((resp) => {
       console.log(resp);
       var docs = [];
