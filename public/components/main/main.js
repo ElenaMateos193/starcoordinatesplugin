@@ -15,7 +15,9 @@ import {
   EuiButton,
   EuiSelect,
   EuiCheckbox,
-  EuiFieldNumber
+  EuiFieldNumber,
+  EuiFormRow,
+  EuiDatePicker
 } from '@elastic/eui';
 
 const numericEsTypes = ["long", "integer", "short", "double", "float", "half_float", "scaled_float"];
@@ -299,6 +301,7 @@ export class Main extends React.Component {
       selectedIndex: {},
       selectedIndexDocs: [],
       selectedIdProperty:'',
+      selectedOldestDate: null,
       selectedNormalization: '',
       refreshDataEnabled: false,
       refreshDataMins: 0,
@@ -356,6 +359,10 @@ export class Main extends React.Component {
     });
   }
 
+  handleSelectedOldestDate(date){
+    this.setState({selectedOldestDate: date});
+  }
+
   onChangeSelectNormalization(normalization){
     this.setState({
       selectedNormalization: normalization.target.value
@@ -390,7 +397,7 @@ export class Main extends React.Component {
       });
       this.setState({selectedIndexDocs: docs});
       if(this.state.refreshDataEnabled && this.state.refreshDataMins > 0)
-        this.intervalID = setTimeout(this.getDocsFromES.bind(this,size + 100), this.state.refreshDataMins*60*1000);
+        this.intervalID = setTimeout(this.getDocsFromES.bind(this,size + 100), this.state.refreshDataMins*1000);
     });
   }
 
@@ -435,7 +442,7 @@ export class Main extends React.Component {
     var index = this.state.selectedIndex[this.state.selectedIndexName];
     var propertiesNames = Object.keys(index.mappings.properties);
     propertiesNames.forEach(property=>{
-      if(onlyNumeric){
+      if(onlyNumeric=== 1){
         if (numericEsTypes.includes(index.mappings.properties[property].type)){
           properties.push({
             id: property,
@@ -444,7 +451,18 @@ export class Main extends React.Component {
           });
           position ++;
         }
-      }else{
+      }
+      else if(onlyNumeric === 2){
+        if (index.mappings.properties[property].type === "date"){
+          properties.push({
+            id: property,
+            label : property,
+            position: position
+          });
+          position ++;
+        }
+      }
+      else{
         properties.push({
           id: property,
           label : property,
@@ -457,20 +475,28 @@ export class Main extends React.Component {
     return properties;
   }
 
-  renderAllIndexProperties(allProperties){
+  renderAllIndexProperties(allProperties, dateProperties){
     if(!this.state.allNeededPropertiesSetted &&
       this.state.selectedIndexName!=="" && 
       !(Object.keys(this.state.selectedIndex).length === 0 && 
       this.state.selectedIndex.constructor === Object)){
       return(<EuiFlexGroup>
         <EuiFlexItem>
-          <EuiText>
-            Select the property to be the id for the points
-          </EuiText>
-        </EuiFlexItem>
-        <EuiFlexItem>
+        <EuiFormRow label="Select the property to be the id for the points:">
           <EuiSelect options={this.transformPropertiesToOptions(allProperties)} onChange={e => this.onChangeSelectIdProperty(e)}>
           </EuiSelect>
+          </EuiFormRow>
+        </EuiFlexItem>
+        <EuiFlexItem>
+        <EuiFormRow label="We've detected date fields. Select one as the date range:" >
+          <EuiSelect options={this.transformPropertiesToOptions(dateProperties)} onChange={e => this.onChangeSelectIdProperty(e)}>
+          </EuiSelect>
+          </EuiFormRow>
+        </EuiFlexItem>
+        <EuiFlexItem>
+          <EuiFormRow label="Select the oldest date to pull records from:">
+            <EuiDatePicker selected={this.state.selectedOldestDate} onChange={(date) => this.handleSelectedOldestDate(date)} />
+          </EuiFormRow>
         </EuiFlexItem>
         <EuiFlexItem>
           <EuiButton
@@ -487,6 +513,7 @@ export class Main extends React.Component {
       return;
     }
   }
+
 
   renderAxes(indexProperties){
     if(this.state.selectedIdProperty!== '' && this.state.selectedIndexDocs.length >0){
@@ -511,8 +538,7 @@ export class Main extends React.Component {
       return(
               <EuiFlexItem>
                 <EuiFieldNumber
-                  placeholder="Number of minutes to fetch for new data"
-                  value={this.state.refreshDataMins}
+                  placeholder="Seconds to refresh"
                   onChange={(e) => {this.setState({refreshDataMins: parseInt(e.target.value)})}}
                 />
               </EuiFlexItem>);
@@ -525,27 +551,21 @@ export class Main extends React.Component {
     if(!this.state.allNeededPropertiesSetted){
       return(<EuiFlexGroup>
               <EuiFlexItem>
-                <EuiText>
-                  Select the index you want to work with
-                </EuiText>
-              </EuiFlexItem>
-              <EuiFlexItem>
+              <EuiFormRow label="Select the index you want to work with:">
                 <EuiSelect options={this.transformIndicesToOptions(this.state.indices)} onChange={e => this.onChangeSelect(e)}>
                 </EuiSelect>
+                </EuiFormRow>
               </EuiFlexItem>
               <EuiFlexItem>
-                <EuiText>
-                  Select the normalization you want to apply
-                </EuiText>
-              </EuiFlexItem>
-              <EuiFlexItem>
+              <EuiFormRow label="Select the normalization you want to apply">
                 <EuiSelect options={[{value: 0, text: "None"}, {value: 1, text: "MinMaxScaler"}, {value: 2, text: "Normal Distribution(mean 0, std 1)"}]} onChange={e => this.onChangeSelectNormalization(e)}>
                 </EuiSelect>
+                </EuiFormRow>
               </EuiFlexItem>
               <EuiFlexItem>
                 <EuiCheckbox
                     id={"refreshDataCheckbox"}
-                    label="Refresh data every 15 seconds"
+                    label="Refresh data periodically"
                     checked={this.state.refreshDataEnabled}
                     onChange ={() => this.setState({refreshDataEnabled: !this.state.refreshDataEnabled})}
                   />
@@ -569,14 +589,17 @@ export class Main extends React.Component {
 
   render() {
     const { title } = this.props;
-    var indexProperties;
+    var numericProperties;
+    var dateProperties;
     var allProperties;
     var properties = Object.keys(this.state.selectedIndex);
     if(properties.length> 0){
-      indexProperties = this.getProperties(true);
-      allProperties = this.getProperties(false);
+      numericProperties = this.getProperties(1);
+      dateProperties = this.getProperties(2);
+      allProperties = this.getProperties(0);
     } else{
-      indexProperties= [];
+      numericProperties= [];
+      dateProperties= [];
       allProperties= [];
     }
     return (
@@ -595,12 +618,12 @@ export class Main extends React.Component {
             </EuiPageContentHeader>
             <EuiPageContentBody>
             {this.renderInitProperties()}
-            {this.renderAllIndexProperties(allProperties)}
+            {this.renderAllIndexProperties(allProperties, dateProperties)}
             <EuiFlexGroup>
               <EuiFlexItem>
-                <CoordinatePlane normalize={this.state.selectedNormalization} idProperty={this.state.selectedIdProperty} axesCheckboxes = {this.state.checkboxesAxesSet} indexProperties={indexProperties} indexDocs={this.state.selectedIndexDocs}></CoordinatePlane>
+                <CoordinatePlane normalize={this.state.selectedNormalization} idProperty={this.state.selectedIdProperty} axesCheckboxes = {this.state.checkboxesAxesSet} indexProperties={numericProperties} indexDocs={this.state.selectedIndexDocs}></CoordinatePlane>
               </EuiFlexItem>
-              {this.renderAxes(indexProperties)}
+              {this.renderAxes(numericProperties)}
             </EuiFlexGroup>
             </EuiPageContentBody>
           </EuiPageContent>

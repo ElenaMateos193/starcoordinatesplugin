@@ -65,10 +65,14 @@ export default function (server){
     method: 'GET',
     handler: async function (req, res){
       let resp = {}
+      let dateQuery={}
+      let dateQUery2={gte: req.query.oldestDate}
+      Object.defineProperty(dateQuery, req.query.dateFieldName, dateQUery2)
       try{
         resp = await callWithRequest(req, 'search', {
           index: req.query.index,
-          size: req.query.size
+          size: req.query.size,
+          q: {range:dateQuery}
         })
       } catch (errResp){
         resp = errResp
