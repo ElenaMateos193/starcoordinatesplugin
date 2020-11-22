@@ -279,8 +279,13 @@ class CoordinatePlane extends React.Component{
       var rowStd = math.std(row);
       var normalizedRow = [];
       row.forEach(cell => {
-        var normalizedCell = (cell - rowMean) / rowStd;
-        normalizedRow.push(normalizedCell);
+        if(rowStd == 0){
+          normalizedRow.push(0);
+        }
+        else{
+          var normalizedCell = (cell - rowMean) / rowStd;
+          normalizedRow.push(normalizedCell);
+        }
       });
       normalizedMatrix.push(normalizedRow);
     });
@@ -301,6 +306,7 @@ export class Main extends React.Component {
       selectedIndex: {},
       selectedIndexDocs: [],
       selectedIdProperty:'',
+      selectedDateProperty:'',
       selectedOldestDate: null,
       selectedNormalization: '',
       refreshDataEnabled: false,
@@ -359,8 +365,14 @@ export class Main extends React.Component {
     });
   }
 
-  handleSelectedOldestDate(date){
-    this.setState({selectedOldestDate: date});
+  onChangeSelectDateProperty(property){
+    this.setState({
+      selectedDateProperty: property.target.value
+    });
+  }
+
+  handleSelectedOldestDate(moment){
+    this.setState({selectedOldestDate: moment});
   }
 
   onChangeSelectNormalization(normalization){
@@ -388,6 +400,9 @@ export class Main extends React.Component {
   getDocsFromES(size){
     const {httpClient} = this.props;
     var url = '../api/starcoordinates/example/get?index=' + this.state.selectedIndexName + '&size=' + size;
+    if(this.state.selectedDateProperty !== ''){
+      url = url + '&dateFieldName=' + this.state.selectedDateProperty + '&oldestDate=' + this.state.selectedOldestDate.format("YYYY-MM-DD");
+    }
     httpClient.get(url).then((resp) => {
       console.log(resp);
       var docs = [];
@@ -488,20 +503,20 @@ export class Main extends React.Component {
           </EuiFormRow>
         </EuiFlexItem>
         <EuiFlexItem>
-        <EuiFormRow label="We've detected date fields. Select one as the date range:" >
-          <EuiSelect options={this.transformPropertiesToOptions(dateProperties)} onChange={e => this.onChangeSelectIdProperty(e)}>
+        <EuiFormRow label="We've detected date fields. Select one as the date range (optional):" >
+          <EuiSelect options={this.transformPropertiesToOptions(dateProperties)} onChange={e => this.onChangeSelectDateProperty(e)}>
           </EuiSelect>
           </EuiFormRow>
         </EuiFlexItem>
         <EuiFlexItem>
-          <EuiFormRow label="Select the oldest date to pull records from:">
+          <EuiFormRow label="Select the oldest date:">
             <EuiDatePicker selected={this.state.selectedOldestDate} onChange={(date) => this.handleSelectedOldestDate(date)} />
           </EuiFormRow>
         </EuiFlexItem>
         <EuiFlexItem>
           <EuiButton
             size="s"
-            isDisabled={this.state.selectedIdProperty === ''}
+            isDisabled={this.state.selectedIdProperty === '' && !(this.state.selectedDateProperty !== '' && this.state.selectedOldestDate == null)}
             fill
             onClick={() => this.onChangeStart()}> 
             Start
@@ -558,7 +573,7 @@ export class Main extends React.Component {
               </EuiFlexItem>
               <EuiFlexItem>
               <EuiFormRow label="Select the normalization you want to apply">
-                <EuiSelect options={[{value: 0, text: "None"}, {value: 1, text: "MinMaxScaler"}, {value: 2, text: "Normal Distribution(mean 0, std 1)"}]} onChange={e => this.onChangeSelectNormalization(e)}>
+                <EuiSelect options={[{value: 0, text: "None"}, {value: 1, text: "MinMaxScaler"}, {value: 2, text: "Standard Normal Distribution"}]} onChange={e => this.onChangeSelectNormalization(e)}>
                 </EuiSelect>
                 </EuiFormRow>
               </EuiFlexItem>

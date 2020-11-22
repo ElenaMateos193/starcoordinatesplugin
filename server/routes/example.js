@@ -67,17 +67,22 @@ export default function (server){
       let resp = {}
       let dateQuery={}
       let dateQUery2={gte: req.query.oldestDate}
-      Object.defineProperty(dateQuery, req.query.dateFieldName, dateQUery2)
+      dateQuery[req.query.dateFieldName]=dateQUery2;
+      let range = {}
+      range["range"] = dateQuery
       try{
-        resp = await callWithRequest(req, 'search', {
+        let searchParameter = {
           index: req.query.index,
-          size: req.query.size,
-          q: {range:dateQuery}
-        })
+          size: req.query.size
+        }
+        if(req.query.dateFieldName!=undefined){
+          searchParameter["body"]={query: range}
+        }
+        resp = await callWithRequest(req, 'search', searchParameter)
       } catch (errResp){
         resp = errResp
       }
-      return {body: resp}
+      return {body: resp, query: range}
     }
   });
  }
