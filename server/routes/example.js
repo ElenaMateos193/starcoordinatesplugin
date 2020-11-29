@@ -76,7 +76,9 @@ export default function (server){
           size: req.query.size
         }
         if(req.query.dateFieldName!=undefined){
-          searchParameter["body"]={query: range}
+          let sort = {}
+          sort[req.query.dateFieldName]= {order: "desc"}
+          searchParameter["body"]={query: range, sort: [sort]}
         }
         resp = await callWithRequest(req, 'search', searchParameter)
       } catch (errResp){

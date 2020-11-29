@@ -8,7 +8,6 @@ import {
   EuiPageContent,
   EuiPageContentHeader,
   EuiPageContentBody,
-  EuiText,
   EuiCheckboxGroup,
   EuiFlexGroup,
   EuiFlexItem,
@@ -47,8 +46,8 @@ class CoordinatePlane extends React.Component{
 
   calculateInitialAxisPositionFromCartessian(axisNumber, numberOfAxes){
     var commonFormula = (2 * axisNumber * Math.PI)/numberOfAxes;
-    var xCoordinate = Math.round(Math.cos(commonFormula)*100)/100;
-    var yCoordinate = Math.round(Math.sin(commonFormula)*100)/100;
+    var xCoordinate = math.round(Math.cos(commonFormula), 3);
+    var yCoordinate = math.round(Math.sin(commonFormula), 3);
     return new Point(xCoordinate, yCoordinate);
   }
 
@@ -59,7 +58,7 @@ class CoordinatePlane extends React.Component{
   }
 
   changeAxisLength(axisStartPoint, axisEndPoint, newLength){
-    var currentAxisLength = Math.sqrt(Math.pow(Math.abs(axisStartPoint.x - axisEndPoint.x), 2) + Math.pow(Math.abs(axisStartPoint.y - axisEndPoint.y), 2));
+    var currentAxisLength = math.round(Math.sqrt(Math.pow(Math.abs(axisStartPoint.x - axisEndPoint.x), 2) + Math.pow(Math.abs(axisStartPoint.y - axisEndPoint.y), 2)), 3);
 
     var actualNewLength = newLength / currentAxisLength;
 
@@ -137,6 +136,7 @@ class CoordinatePlane extends React.Component{
       this.props.axesCheckboxes.forEach(axis => {
         data = data + ' ' + axis + ': ' + pointData[axis];
       });
+      data = 'SongId: ' + pointData['SongId'] + ', ' + data;//todo this is wrong!! should change it to a configuration 
     }
     var point = (
       <svg key={key + 'Svg'}>
@@ -250,6 +250,7 @@ class CoordinatePlane extends React.Component{
         </div>
         <div style={{display: 'flex', justifyContent: 'right', marginTop: '0.5em'}}>
         <EuiButton onClick={() => this.resetAxes()} fill>Reset Axes</EuiButton>
+        <EuiButton onClick={() => this.resetAxes()} fill>Point hover</EuiButton>
         </div>
       </div>);
   }
@@ -265,7 +266,7 @@ class CoordinatePlane extends React.Component{
       for (var n = 0; n < element.length; n++) {
         var cell = element[n];
         var normalizedCell = (cell - rowMin) / (rowMax - rowMin);
-        normalizedRow.push(normalizedCell);
+        normalizedRow.push(math.round(normalizedCell, 3));
       }
       normalizedMatrix.push(normalizedRow);
     }
@@ -284,7 +285,7 @@ class CoordinatePlane extends React.Component{
         }
         else{
           var normalizedCell = (cell - rowMean) / rowStd;
-          normalizedRow.push(normalizedCell);
+          normalizedRow.push(math.round(normalizedCell, 3));
         }
       });
       normalizedMatrix.push(normalizedRow);
@@ -311,7 +312,8 @@ export class Main extends React.Component {
       selectedNormalization: '',
       refreshDataEnabled: false,
       refreshDataMins: 0,
-      allNeededPropertiesSetted: false
+      allNeededPropertiesSetted: false,
+      size: 1
     };
   }
 
@@ -394,12 +396,12 @@ export class Main extends React.Component {
 
   onChangeStart(){
     this.setState({allNeededPropertiesSetted : true});
-    this.getDocsFromES(100);
+    this.getDocsFromES();
   }
 
-  getDocsFromES(size){
+  getDocsFromES(){
     const {httpClient} = this.props;
-    var url = '../api/starcoordinates/example/get?index=' + this.state.selectedIndexName + '&size=' + size;
+    var url = '../api/starcoordinates/example/get?index=' + this.state.selectedIndexName + '&size=' + this.state.size;
     if(this.state.selectedDateProperty !== ''){
       url = url + '&dateFieldName=' + this.state.selectedDateProperty + '&oldestDate=' + this.state.selectedOldestDate.format("YYYY-MM-DD");
     }
@@ -412,7 +414,7 @@ export class Main extends React.Component {
       });
       this.setState({selectedIndexDocs: docs});
       if(this.state.refreshDataEnabled && this.state.refreshDataMins > 0)
-        this.intervalID = setTimeout(this.getDocsFromES.bind(this,size + 100), this.state.refreshDataMins*1000);
+        this.intervalID = setTimeout(this.getDocsFromES.bind(this), this.state.refreshDataMins*1000);
     });
   }
 
@@ -497,9 +499,16 @@ export class Main extends React.Component {
       this.state.selectedIndex.constructor === Object)){
       return(<EuiFlexGroup>
         <EuiFlexItem>
-        <EuiFormRow label="Select the property to be the id for the points:">
+        <EuiFormRow label="Id property for the points:">
           <EuiSelect options={this.transformPropertiesToOptions(allProperties)} onChange={e => this.onChangeSelectIdProperty(e)}>
           </EuiSelect>
+          </EuiFormRow>
+        </EuiFlexItem>
+        <EuiFlexItem>
+          <EuiFormRow label="Maximum docs number">
+            <EuiFieldNumber placeholder="Doc number" min={1} max={10000} onChange={(e) => {this.setState({
+      size: e.target.value
+    })}}></EuiFieldNumber>
           </EuiFormRow>
         </EuiFlexItem>
         <EuiFlexItem>
@@ -509,7 +518,7 @@ export class Main extends React.Component {
           </EuiFormRow>
         </EuiFlexItem>
         <EuiFlexItem>
-          <EuiFormRow label="Select the oldest date:">
+          <EuiFormRow label="Select oldest date:">
             <EuiDatePicker selected={this.state.selectedOldestDate} onChange={(date) => this.handleSelectedOldestDate(date)} />
           </EuiFormRow>
         </EuiFlexItem>
