@@ -4396,6 +4396,14 @@ react-lineto@^3.2.0:
     prop-types "15.6.0"
     react "16.2.0"
 
+react-svg-pan-zoom@^3.8.1:
+  version "3.8.1"
+  resolved "https://registry.yarnpkg.com/react-svg-pan-zoom/-/react-svg-pan-zoom-3.8.1.tgz#4a9b793b39039e3b68db726c6e6f8125ce0fb7fa"
+  integrity sha512-DjhBTlwO+aS9KCerWqbTMaYoQodhz64Ej9pg3ihobabO+AtO2ZOQ0OZ9Gep9+YcDWGwhck//r3tUlcMvBdRmJQ==
+  dependencies:
+    prop-types "^15.7.2"
+    transformation-matrix "^2.2.0"
+
 react@16.2.0:
   version "16.2.0"
   resolved "https://registry.yarnpkg.com/react/-/react-16.2.0.tgz#a31bd2dab89bff65d42134fa187f24d054c273ba"
@@ -5389,6 +5397,11 @@ tough-cookie@~2.5.0:
   dependencies:
     psl "^1.1.28"
     punycode "^2.1.1"
+
+transformation-matrix@^2.2.0:
+  version "2.5.0"
+  resolved "https://registry.yarnpkg.com/transformation-matrix/-/transformation-matrix-2.5.0.tgz#640d4e3be9084b05094b55e65b454a64ab1985d5"
+  integrity sha512-Z9UotSHOWMcqYYKwQUts49CjCH8H51HBbPN4uiQIwNpGMZs70LpugThBmLpUy2LFdrbfXGhdlu4WJ3yILK6kcw==
 
 trim-newlines@^1.0.0:
   version "1.0.0"

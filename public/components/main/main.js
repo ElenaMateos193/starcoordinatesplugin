@@ -1,5 +1,6 @@
 import React from 'react';
 import * as math from 'mathjs';
+import {UncontrolledReactSVGPanZoom} from 'react-svg-pan-zoom';
 import {
   EuiPage,
   EuiPageHeader,
@@ -41,7 +42,6 @@ class CoordinatePlane extends React.Component{
       activeAxis: "",
       manuallyChangedAxesEndPointsList: []
     };
-    // this.handleDivClick = this.handleDivClick.bind(this);
   }
 
   calculateInitialAxisPositionFromCartessian(axisNumber, numberOfAxes){
@@ -107,24 +107,22 @@ class CoordinatePlane extends React.Component{
   }
 
   renderAxis(key, axisEndPoint){
+    var cartessianAxis = this.rotationOfCartessianAxes(axisEndPoint, new Point(-planeOrigin.x, -planeOrigin.y));
     var axis = (
       <svg  key={key + 'Svg'}>
-      <line onClick={(e) => this.handleAxisClick(key, e)} key={key} x1="500" y1="500" x2={axisEndPoint.x} y2={axisEndPoint.y} style={{stroke:'rgb(255,0,0)', strokeWidth:'5'}} >
+      <line onClick={(e) => this.handleAxisClick(key, e)} key={key} x1={planeOrigin.x} y1={planeOrigin.y} x2={axisEndPoint.x} y2={axisEndPoint.y} style={{stroke:'rgb(255,0,0)', strokeWidth:'5'}} >
       </line>
-      <title>{key + '. x: ' + Math.trunc(axisEndPoint.x) + ' y: ' + Math.trunc(axisEndPoint.y)}</title>
+      <title>{key + '. x: ' + Math.trunc(cartessianAxis.x) + ' y: ' + Math.trunc(0-cartessianAxis.y)}</title>
       </svg>
     );
     return axis;
   }
 
   renderAxisTag(key, axisEndPoint){
-    var decrementX = key.length * 4
-    var decrementY = 10;  
-    if(axisEndPoint.y <=   planeOrigin.y){
-      decrementY = decrementY * (-1)
-    }
+    var tagXCoordinate = (axisEndPoint.x < planeOrigin.x) ? axisEndPoint.x - 5 : axisEndPoint.x + 5;
+    var tagYCoordinate = (axisEndPoint.y < planeOrigin.y) ? axisEndPoint.y - 5 : axisEndPoint.y + 5;
     var tag = (
-      <text key={key + 'Tag'} fill="blue" x={axisEndPoint.x - decrementX} y={axisEndPoint.y + decrementY}>{key}</text>
+      <text x={tagXCoordinate} y={tagYCoordinate}>{key}</text>
     );
     return tag;
   }
@@ -155,9 +153,8 @@ class CoordinatePlane extends React.Component{
 
   handleRepositioningClick(e){
     if(this.state.activeAxis!== ""){
-      const clickEvent = e.nativeEvent;
       var filteredCopy = this.state.manuallyChangedAxesEndPointsList.filter(axis => axis.key !== this.state.activeAxis);
-      var copy = filteredCopy.concat({key: this.state.activeAxis, endPoint:  new Point(clickEvent.offsetX, clickEvent.offsetY)});
+      var copy = filteredCopy.concat({key: this.state.activeAxis, endPoint:  new Point(e.x, e.y)});
       this.setState({activeAxis: "", manuallyChangedAxesEndPointsList: copy});
     }
   }
@@ -178,8 +175,6 @@ class CoordinatePlane extends React.Component{
       return null;
     }
 
-    // var filteredCopy = this.state.manuallyChangedAxesEndPointsList.filter(axis => axesCheckboxesArray.includes(axis.key));
-    // this.setState({manuallyChangedAxesEndPointsList: filteredCopy});
     axesCheckboxesArray = axesCheckboxesArray.sort();
     axesCheckboxesArray.forEach(element => {
         var changedAxis = this.state.manuallyChangedAxesEndPointsList.filter(axis => axis.key === element);
@@ -232,22 +227,20 @@ class CoordinatePlane extends React.Component{
     points = this.transformToPoints(pointsToRender, matrixAndIds.Ids);
     return(
       <div>
-        <div id="canvas" onClick={(e) => this.handleRepositioningClick(e)} style={{
-        backgroundColor: '#ededed',
-        height: '1000px',
-        width: '1000px',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        }}>
-        <svg style={{width:'1000px', height:'1000px', overflow:'visible'}}>
+       <UncontrolledReactSVGPanZoom
+          width={1000} height={1000}
+          ref={Viewer => this.Viewer = Viewer}
+          onClick={(e) => this.handleRepositioningClick(e)}
+          style={{backgroundColor:'#ededed'}}
+        >
+        <svg width={1000} height={1000} style={{overflow:'visible'}}>
           <line onClick={(e) => this.handleRepositioningClick(e)} key={"xcoordinate"} x1="0" y1="500" x2="1000" y2="500" style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
           <line onClick={(e) => this.handleRepositioningClick(e)} key={"ycoordinate"} x1="500" y1="0" x2="500" y2="1000" style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
           {axes}
-          {/* {tags} */}
           {points}
+          {/* {tags} */}
         </svg>
-        </div>
+        </UncontrolledReactSVGPanZoom>
         <div style={{display: 'flex', justifyContent: 'right', marginTop: '0.5em'}}>
         <EuiButton onClick={() => this.resetAxes()} fill>Reset Axes</EuiButton>
         <EuiButton onClick={() => this.resetAxes()} fill>Point hover</EuiButton>
@@ -612,7 +605,7 @@ export class Main extends React.Component {
   }
 
   render() {
-    const { title } = this.props;
+    var title = (this.state.allNeededPropertiesSetted) ? 'Index: ' + this.state.selectedIndexName : 'Star coordinates configuration';
     var numericProperties;
     var dateProperties;
     var allProperties;
@@ -629,15 +622,10 @@ export class Main extends React.Component {
     return (
       <EuiPage>
         <EuiPageBody>
-          <EuiPageHeader>
-            <EuiTitle size="l">
-              <h1>{title}</h1>
-            </EuiTitle>
-          </EuiPageHeader>
           <EuiPageContent>
             <EuiPageContentHeader>
               <EuiTitle>
-                <h2></h2>
+                <h2>{title}</h2>
               </EuiTitle>
             </EuiPageContentHeader>
             <EuiPageContentBody>
