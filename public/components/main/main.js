@@ -2,22 +2,22 @@ import React from 'react';
 import * as math from 'mathjs';
 import {UncontrolledReactSVGPanZoom} from 'react-svg-pan-zoom';
 import {
-  EuiPage,
-  EuiPageHeader,
   EuiTitle,
-  EuiPageBody,
-  EuiPageContent,
-  EuiPageContentHeader,
-  EuiPageContentBody,
   EuiCheckboxGroup,
   EuiFlexGroup,
   EuiFlexItem,
   EuiButton,
   EuiSelect,
-  EuiCheckbox,
   EuiFieldNumber,
   EuiFormRow,
-  EuiDatePicker
+  EuiDatePicker,
+  EuiPanel,
+  EuiSpacer,
+  EuiModal,
+  EuiModalBody,
+  EuiModalHeader,
+  EuiModalHeaderTitle,
+  EuiOverlayMask,
 } from '@elastic/eui';
 
 const numericEsTypes = ["long", "integer", "short", "double", "float", "half_float", "scaled_float"];
@@ -32,7 +32,7 @@ class Point {
   }
 }
 
-const planeOrigin = new Point(500, 500);
+const planeOrigin = new Point(500, 375);
 
 class CoordinatePlane extends React.Component{
   
@@ -40,7 +40,10 @@ class CoordinatePlane extends React.Component{
     super();
     this.state = {
       activeAxis: "",
-      manuallyChangedAxesEndPointsList: []
+      manuallyChangedAxesEndPointsList: [],
+      showPointHoverModal: false,
+      pointHoverPropertiesSet: [],
+      pointHoverPropertiesIdToSelectedMap: {}
     };
   }
 
@@ -130,11 +133,10 @@ class CoordinatePlane extends React.Component{
   renderPoint(key, point){
     var pointData= this.props.indexDocs.filter(doc => doc[this.props.idProperty]=== key)[0];
     var data = '';
-    if(pointData){
-      this.props.axesCheckboxes.forEach(axis => {
-        data = data + ' ' + axis + ': ' + pointData[axis];
+    if(pointData && this.state.pointHoverPropertiesSet.length>0){
+      this.state.pointHoverPropertiesSet.forEach(property => {
+        data = data + ' ' + property + ': ' + pointData[property];
       });
-      data = 'SongId: ' + pointData['SongId'] + ', ' + data;//todo this is wrong!! should change it to a configuration 
     }
     var point = (
       <svg key={key + 'Svg'}>
@@ -228,14 +230,14 @@ class CoordinatePlane extends React.Component{
     return(
       <div>
        <UncontrolledReactSVGPanZoom
-          width={1000} height={1000}
+          width={planeOrigin.x*2} height={planeOrigin.y*2}
           ref={Viewer => this.Viewer = Viewer}
           onClick={(e) => this.handleRepositioningClick(e)}
           style={{backgroundColor:'#ededed'}}
         >
-        <svg width={1000} height={1000} style={{overflow:'visible'}}>
-          <line onClick={(e) => this.handleRepositioningClick(e)} key={"xcoordinate"} x1="0" y1="500" x2="1000" y2="500" style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
-          <line onClick={(e) => this.handleRepositioningClick(e)} key={"ycoordinate"} x1="500" y1="0" x2="500" y2="1000" style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
+        <svg width={planeOrigin.x*2} height={planeOrigin.y*2} style={{overflow:'visible'}}>
+          <line onClick={(e) => this.handleRepositioningClick(e)} key={"xcoordinate"} x1="0" y1={planeOrigin.y} x2={planeOrigin.x*2} y2={planeOrigin.y} style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
+          <line onClick={(e) => this.handleRepositioningClick(e)} key={"ycoordinate"} x1={planeOrigin.x} y1="0" x2={planeOrigin.x} y2={planeOrigin.y*2} style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
           {axes}
           {points}
           {/* {tags} */}
@@ -243,9 +245,60 @@ class CoordinatePlane extends React.Component{
         </UncontrolledReactSVGPanZoom>
         <div style={{display: 'flex', justifyContent: 'right', marginTop: '0.5em'}}>
         <EuiButton onClick={() => this.resetAxes()} fill>Reset Axes</EuiButton>
-        <EuiButton onClick={() => this.resetAxes()} fill>Point hover</EuiButton>
+        {this.renderPointHoverOption()}
+        
         </div>
       </div>);
+  }
+
+  onChangePointHoverProperties(optionId){
+    var label = this.props.indexProperties.filter(property => property.id === optionId)[0].label;
+
+    const newCheckboxIdToSelectedMap = {... this.state.pointHoverPropertiesIdToSelectedMap}
+
+    var newOptionValue = !newCheckboxIdToSelectedMap[optionId];
+
+    newCheckboxIdToSelectedMap[optionId]= newOptionValue;
+
+    var newSet = this.state.pointHoverPropertiesSet.slice();
+
+    if(newOptionValue){
+      newSet.push(label);
+    }
+    else{
+      newSet = newSet.filter(item => item!==label);
+    }
+
+    this.setState({
+      pointHoverPropertiesSet: newSet,
+      pointHoverPropertiesIdToSelectedMap: newCheckboxIdToSelectedMap
+    });
+  }
+
+  renderPointHoverOption(){
+    var modal;
+    var indexPropertiesCopy= this.props.indexProperties.slice();
+    if (this.state.showPointHoverModal) {
+      modal = (
+        <EuiOverlayMask>
+          <EuiModal onClose={()=> this.setState({showPointHoverModal: false})} initialFocus="[name=popswitch]">
+            <EuiModalHeader>
+              <EuiModalHeaderTitle>Point Hover Configuration</EuiModalHeaderTitle>
+            </EuiModalHeader>
+  
+            <EuiModalBody><EuiCheckboxGroup options={indexPropertiesCopy}
+              idToSelectedMap={this.state.pointHoverPropertiesIdToSelectedMap}
+              onChange={(optionId) => (this.onChangePointHoverProperties(optionId))}></EuiCheckboxGroup></EuiModalBody>
+          </EuiModal>
+        </EuiOverlayMask>
+      );
+    }
+    return (
+      <div>
+        <EuiButton onClick={()=> this.setState({showPointHoverModal: true})} fill>Point hover</EuiButton>
+        {modal}
+      </div>
+    );
   }
 
   minMaxNormalization(originalMatrix) {
@@ -304,9 +357,9 @@ export class Main extends React.Component {
       selectedOldestDate: null,
       selectedNormalization: '',
       refreshDataEnabled: false,
-      refreshDataMins: 0,
+      refreshDataSeconds: 0,
       allNeededPropertiesSetted: false,
-      size: 1
+      size: 0
     };
   }
 
@@ -376,6 +429,20 @@ export class Main extends React.Component {
     });
   }
 
+  onChangeRefreshSeconds(){
+    if(e.target.value !== ""){
+      var seconds = parseInt(e.target.value);
+      if(seconds>0){
+        this.setState({refreshDataEnabled:true, refreshDataSeconds: seconds});
+      }
+      else{
+        this.setState({refreshDataEnabled:false});
+      }
+    }
+    else{
+      this.setState({refreshDataEnabled:false});
+    }
+  }
 
   onChangeButton(){
     const {httpClient} = this.props;
@@ -406,8 +473,8 @@ export class Main extends React.Component {
         docs.push(doc._source);
       });
       this.setState({selectedIndexDocs: docs});
-      if(this.state.refreshDataEnabled && this.state.refreshDataMins > 0)
-        this.intervalID = setTimeout(this.getDocsFromES.bind(this), this.state.refreshDataMins*1000);
+      if(this.state.refreshDataEnabled && this.state.refreshDataSeconds > 0)
+        this.intervalID = setTimeout(this.getDocsFromES.bind(this), this.state.refreshDataSeconds*1000);
     });
   }
 
@@ -474,7 +541,7 @@ export class Main extends React.Component {
       }
       else{
         properties.push({
-          id: property,
+          id: property + '-Property',
           label : property,
           position: position
         });
@@ -486,39 +553,40 @@ export class Main extends React.Component {
   }
 
   renderAllIndexProperties(allProperties, dateProperties){
-    if(!this.state.allNeededPropertiesSetted &&
-      this.state.selectedIndexName!=="" && 
-      !(Object.keys(this.state.selectedIndex).length === 0 && 
-      this.state.selectedIndex.constructor === Object)){
+    if(this.readyToRenderPropertiesConfig()){
       return(<EuiFlexGroup>
         <EuiFlexItem>
-        <EuiFormRow label="Id property for the points:">
+        <EuiFormRow label="Point id">
           <EuiSelect options={this.transformPropertiesToOptions(allProperties)} onChange={e => this.onChangeSelectIdProperty(e)}>
           </EuiSelect>
           </EuiFormRow>
         </EuiFlexItem>
         <EuiFlexItem>
-          <EuiFormRow label="Maximum docs number">
+          <EuiFormRow label="Max docs number">
             <EuiFieldNumber placeholder="Doc number" min={1} max={10000} onChange={(e) => {this.setState({
       size: e.target.value
     })}}></EuiFieldNumber>
           </EuiFormRow>
         </EuiFlexItem>
         <EuiFlexItem>
-        <EuiFormRow label="We've detected date fields. Select one as the date range (optional):" >
+        <EuiFormRow label="Date range field (optional):" >
           <EuiSelect options={this.transformPropertiesToOptions(dateProperties)} onChange={e => this.onChangeSelectDateProperty(e)}>
           </EuiSelect>
           </EuiFormRow>
         </EuiFlexItem>
         <EuiFlexItem>
-          <EuiFormRow label="Select oldest date:">
+          <EuiFormRow label="Oldest date:">
             <EuiDatePicker selected={this.state.selectedOldestDate} onChange={(date) => this.handleSelectedOldestDate(date)} />
           </EuiFormRow>
         </EuiFlexItem>
         <EuiFlexItem>
           <EuiButton
+                          style={{
+    marginTop: 'auto',
+    padding: '1.5em'
+}}
             size="s"
-            isDisabled={this.state.selectedIdProperty === '' && !(this.state.selectedDateProperty !== '' && this.state.selectedOldestDate == null)}
+            isDisabled={this.isNotReadyToStart()}
             fill
             onClick={() => this.onChangeStart()}> 
             Start
@@ -531,6 +599,17 @@ export class Main extends React.Component {
     }
   }
 
+
+  readyToRenderPropertiesConfig() {
+    return !this.state.allNeededPropertiesSetted &&
+      this.state.selectedIndexName !== "" &&
+      !(Object.keys(this.state.selectedIndex).length === 0 &&
+        this.state.selectedIndex.constructor === Object);
+  }
+
+  isNotReadyToStart() {
+    return this.state.size <= 0 || this.state.selectedIdProperty === '' && !(this.state.selectedDateProperty !== '' && this.state.selectedOldestDate == null);
+  }
 
   renderAxes(indexProperties){
     if(this.state.selectedIdProperty!== '' && this.state.selectedIndexDocs.length >0){
@@ -550,51 +629,40 @@ export class Main extends React.Component {
       return;
     }
   }
-  renderRefreshDataMinsFieldNumber(){
-    if(this.state.refreshDataEnabled){
-      return(
-              <EuiFlexItem>
-                <EuiFieldNumber
-                  placeholder="Seconds to refresh"
-                  onChange={(e) => {this.setState({refreshDataMins: parseInt(e.target.value)})}}
-                />
-              </EuiFlexItem>);
-    }
-    else{
-      return;
-    }
-  }
   renderInitProperties(){
     if(!this.state.allNeededPropertiesSetted){
-      return(<EuiFlexGroup>
-              <EuiFlexItem>
-              <EuiFormRow label="Select the index you want to work with:">
+      return(<EuiFlexGroup justifyContent="spaceAround">
+              <EuiFlexItem grow={false}>
+              <EuiFormRow label="Index to work with">
                 <EuiSelect options={this.transformIndicesToOptions(this.state.indices)} onChange={e => this.onChangeSelect(e)}>
                 </EuiSelect>
                 </EuiFormRow>
               </EuiFlexItem>
-              <EuiFlexItem>
-              <EuiFormRow label="Select the normalization you want to apply">
+              <EuiFlexItem grow={false}>
+              <EuiFormRow label="Normalization to apply">
                 <EuiSelect options={[{value: 0, text: "None"}, {value: 1, text: "MinMaxScaler"}, {value: 2, text: "Standard Normal Distribution"}]} onChange={e => this.onChangeSelectNormalization(e)}>
                 </EuiSelect>
                 </EuiFormRow>
               </EuiFlexItem>
-              <EuiFlexItem>
-                <EuiCheckbox
-                    id={"refreshDataCheckbox"}
-                    label="Refresh data periodically"
-                    checked={this.state.refreshDataEnabled}
-                    onChange ={() => this.setState({refreshDataEnabled: !this.state.refreshDataEnabled})}
-                  />
+              <EuiFlexItem grow={false}>
+              <EuiFormRow label="Refresh data">
+                <EuiFieldNumber
+                  placeholder="Seconds to refresh"
+                  onChange={(e) => this.onChangeRefreshSeconds(e)}
+                />
+                </EuiFormRow>
               </EuiFlexItem>
-              {this.renderRefreshDataMinsFieldNumber()}
-              <EuiFlexItem>
+              <EuiFlexItem grow={false}>
                 <EuiButton
+                style={{
+    marginTop: 'auto',
+    padding: '1.5em'
+}}
                   size="s"
                   isDisabled={this.state.selectedIndexName === ''}
                   fill
                   onClick={() => this.onChangeButton()}> 
-                  Start
+                  Next
                 </EuiButton>
               </EuiFlexItem>
             </EuiFlexGroup>);
@@ -603,44 +671,88 @@ export class Main extends React.Component {
       return;
     }
   }
+  renderConfiguration(){
+    var title = (this.state.allNeededPropertiesSetted) ? 'Index: ' + this.state.selectedIndexName : 'Star coordinates configuration';
+    return(
+    <div>
+    <EuiFlexGroup justifyContent="spaceAround">
+    <EuiFlexItem grow={false}>
+    <EuiTitle size="l">
+      <h2>{title}</h2>
+    </EuiTitle>
+    </EuiFlexItem>
+    </EuiFlexGroup>
+    <EuiFlexGroup justifyContent="spaceAround">
+    <EuiFlexItem grow={false}>
+      {this.renderInitProperties()}
+    </EuiFlexItem>
+  </EuiFlexGroup></div>);
+  }
+  renderPropertiesConfiguration(allProperties, dateProperties){
+    if(this.readyToRenderPropertiesConfig()){
+    return(<div>
+      <EuiFlexGroup justifyContent="spaceAround">
+      <EuiFlexItem grow={false}>
+          <EuiTitle>
+            <h2>Properties configuration</h2>
+          </EuiTitle>
+      </EuiFlexItem>
+      </EuiFlexGroup>
+      <EuiFlexGroup justifyContent="spaceAround">
+      <EuiFlexItem grow={false}>
+        {this.renderAllIndexProperties(allProperties, dateProperties)}
+        </EuiFlexItem>
+      </EuiFlexGroup>
+    </div>);
+    }else{
+      return null;
+    }
+  }
 
   render() {
-    var title = (this.state.allNeededPropertiesSetted) ? 'Index: ' + this.state.selectedIndexName : 'Star coordinates configuration';
-    var numericProperties;
     var dateProperties;
     var allProperties;
     var properties = Object.keys(this.state.selectedIndex);
+    if(this.state.allNeededPropertiesSetted){
+      var numericProperties = this.getProperties(1);
+      allProperties = this.getProperties(0);
+      var idPropertyLabel = allProperties.filter(property=>property.id===this.state.selectedIdProperty)[0].label
+      return(
+      <EuiPanel style={{margin: '2em 2em 2em 2em'}}>
+      <EuiFlexGroup justifyContent="spaceAround">
+    <EuiFlexItem grow={false}>
+    <EuiTitle size="l">
+      <h2>Index - {this.state.selectedIndexName}</h2>
+    </EuiTitle>
+    </EuiFlexItem>
+    </EuiFlexGroup>
+    <EuiSpacer></EuiSpacer>
+        <EuiFlexGroup>
+          <EuiFlexItem>
+            <CoordinatePlane  normalize={this.state.selectedNormalization} idProperty={idPropertyLabel} axesCheckboxes = {this.state.checkboxesAxesSet} indexProperties={allProperties} indexDocs={this.state.selectedIndexDocs}></CoordinatePlane>
+          </EuiFlexItem>
+          {this.renderAxes(numericProperties)}
+        </EuiFlexGroup>
+        </EuiPanel>      
+      );
+    }else{
     if(properties.length> 0){
-      numericProperties = this.getProperties(1);
       dateProperties = this.getProperties(2);
       allProperties = this.getProperties(0);
     } else{
-      numericProperties= [];
       dateProperties= [];
       allProperties= [];
     }
     return (
-      <EuiPage>
-        <EuiPageBody>
-          <EuiPageContent>
-            <EuiPageContentHeader>
-              <EuiTitle>
-                <h2>{title}</h2>
-              </EuiTitle>
-            </EuiPageContentHeader>
-            <EuiPageContentBody>
-            {this.renderInitProperties()}
-            {this.renderAllIndexProperties(allProperties, dateProperties)}
-            <EuiFlexGroup>
-              <EuiFlexItem>
-                <CoordinatePlane normalize={this.state.selectedNormalization} idProperty={this.state.selectedIdProperty} axesCheckboxes = {this.state.checkboxesAxesSet} indexProperties={numericProperties} indexDocs={this.state.selectedIndexDocs}></CoordinatePlane>
-              </EuiFlexItem>
-              {this.renderAxes(numericProperties)}
-            </EuiFlexGroup>
-            </EuiPageContentBody>
-          </EuiPageContent>
-        </EuiPageBody>
-      </EuiPage>
+      <div>
+      <EuiSpacer />
+      <EuiPanel style={{marginLeft:'10em', marginRight:'10em'}}>
+      {this.renderConfiguration()}
+      <EuiSpacer></EuiSpacer>
+      {this.renderPropertiesConfiguration(allProperties, dateProperties)}
+      </EuiPanel>
+      </div>
     );
+  }
   }
 }
