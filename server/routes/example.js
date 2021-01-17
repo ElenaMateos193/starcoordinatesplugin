@@ -42,7 +42,7 @@ export default function (server){
     handler: async function (req, res){
       let resp = {}
       let dateQuery={}
-      let dateQUery2={gte: req.query.oldestDate}
+      let dateQUery2={gte: req.query.startDate, lte: req.query.endDate};
       dateQuery[req.query.dateFieldName]=dateQUery2;
       let range = {}
       range["range"] = dateQuery

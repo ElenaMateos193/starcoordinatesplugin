@@ -18,9 +18,19 @@ import {
   EuiModalHeader,
   EuiModalHeaderTitle,
   EuiOverlayMask,
+  EuiButtonIcon,
+  EuiDatePickerRange,
 } from '@elastic/eui';
 
 const numericEsTypes = ["long", "integer", "short", "double", "float", "half_float", "scaled_float"];
+const timeUnits =[ {text: "Select", value:0},
+                    {text: "Second", value: 1}, 
+                    {text: "Minute", value: 60}, 
+                    {text: "Hour", value: 3600}, 
+                    {text:"Day", value: 86400}, 
+                    {text: "Week", value: 604800},
+                    {text: "Month", value: 2592000}
+                  ];
 
 class Point {
   constructor(x, y){
@@ -30,6 +40,33 @@ class Point {
   toArray(){
     return [[this.x], [this.y]];
   }
+}
+
+function numberUnitToMomentUnit(number){
+  var momentUnit = '';
+  switch (number) {
+    case 1:
+      momentUnit = 's';
+      break;
+    case 60:
+      momentUnit = 'm';
+      break;
+    case 3600:
+      momentUnit = 'h';
+      break;
+    case 86400:
+      momentUnit = 'd';
+      break;
+    case 604800:
+      momentUnit = 'w';
+      break;
+    case 2592000:
+      momentUnit = 'm';
+      break;
+    default:
+      break;
+  }
+  return momentUnit;
 }
 
 const planeOrigin = new Point(500, 375);
@@ -244,7 +281,7 @@ class CoordinatePlane extends React.Component{
         </svg>
         </UncontrolledReactSVGPanZoom>
         <div style={{display: 'flex', justifyContent: 'right', marginTop: '0.5em'}}>
-        <EuiButton onClick={() => this.resetAxes()} fill>Reset Axes</EuiButton>
+        <EuiButton style={{marginRight:'0.5em'}} onClick={() => this.resetAxes()} fill>Reset Axes</EuiButton>
         {this.renderPointHoverOption()}
         
         </div>
@@ -340,27 +377,31 @@ class CoordinatePlane extends React.Component{
   }
 }
 
+const initialState = {
+  checkboxesAxesSet: [],
+  axesCheckboxIdToSelectedMap: {},
+  indices: [],
+  selectedIndexName: '',
+  selectedIndex: {},
+  selectedIndexDocs: [],
+  selectedIdProperty: '',
+  selectedDateProperty: '',
+  selectedOldestDate: null,
+  selectedNormalization: '',
+  refreshDataEnabled: false,
+  refreshRate: 0,
+  allNeededPropertiesSetted: false,
+  size: 0,
+  startDate: null,
+  endDate: null,
+  refreshRateUnit: 0
+};
 export class Main extends React.Component {
   interlvalID = null;
 
   constructor() {
     super();
-    this.state = {
-      checkboxesAxesSet: [],
-      axesCheckboxIdToSelectedMap: {},
-      indices: [],
-      selectedIndexName: '',
-      selectedIndex: {},
-      selectedIndexDocs: [],
-      selectedIdProperty:'',
-      selectedDateProperty:'',
-      selectedOldestDate: null,
-      selectedNormalization: '',
-      refreshDataEnabled: false,
-      refreshDataSeconds: 0,
-      allNeededPropertiesSetted: false,
-      size: 0
-    };
+    this.state = initialState;
   }
 
   transformIndicesToOptions(list){
@@ -407,6 +448,12 @@ export class Main extends React.Component {
     });
   }
 
+  onChangeRefreshRateUnit(unit){
+    this.setState({
+      refreshRateUnit: unit.target.value
+    });
+  }
+
   onChangeSelectIdProperty(property){
     this.setState({
       selectedIdProperty: property.target.value
@@ -423,17 +470,25 @@ export class Main extends React.Component {
     this.setState({selectedOldestDate: moment});
   }
 
+  handleStartDate(moment){
+    this.setState({startDate: moment});
+  }
+
+  handleEndDate(moment){
+    this.setState({endDate: moment});
+  }
+
   onChangeSelectNormalization(normalization){
     this.setState({
       selectedNormalization: normalization.target.value
     });
   }
 
-  onChangeRefreshSeconds(){
+  onChangeRefreshRate(e){
     if(e.target.value !== ""){
-      var seconds = parseInt(e.target.value);
-      if(seconds>0){
-        this.setState({refreshDataEnabled:true, refreshDataSeconds: seconds});
+      var number = parseInt(e.target.value);
+      if(number>0){
+        this.setState({refreshDataEnabled:true, refreshRate: number});
       }
       else{
         this.setState({refreshDataEnabled:false});
@@ -456,14 +511,22 @@ export class Main extends React.Component {
 
   onChangeStart(){
     this.setState({allNeededPropertiesSetted : true});
-    this.getDocsFromES();
+    this.getDocsFromES(false);
   }
 
-  getDocsFromES(){
+  getDocsFromES(isRefresh){
     const {httpClient} = this.props;
+    
     var url = '../api/starcoordinates/example/get?index=' + this.state.selectedIndexName + '&size=' + this.state.size;
     if(this.state.selectedDateProperty !== ''){
-      url = url + '&dateFieldName=' + this.state.selectedDateProperty + '&oldestDate=' + this.state.selectedOldestDate.format("YYYY-MM-DD");
+      var startDate = this.state.startDate;
+      var endDate = this.state.endDate;
+      var momentUnit = numberUnitToMomentUnit(this.state.refreshRateUnit);
+      if(isRefresh){
+        startDate = startDate.add(this.state.refreshRateUnit, momentUnit);
+        endDate = endDate.add(this.state.refreshRateUnit, momentUnit);
+      }
+      url = url + '&dateFieldName=' + this.state.selectedDateProperty + '&startDate=' + startDate.format("YYYY-MM-DDTHH:mm:ssZ") + '&endDate=' + endDate.format("YYYY-MM-DDTHH:mm:ssZ");
     }
     httpClient.get(url).then((resp) => {
       console.log(resp);
@@ -473,8 +536,8 @@ export class Main extends React.Component {
         docs.push(doc._source);
       });
       this.setState({selectedIndexDocs: docs});
-      if(this.state.refreshDataEnabled && this.state.refreshDataSeconds > 0)
-        this.intervalID = setTimeout(this.getDocsFromES.bind(this), this.state.refreshDataSeconds*1000);
+      if(this.state.refreshDataEnabled && this.state.refreshRate > 0)
+        this.intervalID = setTimeout(this.getDocsFromES.bind(this), this.state.refreshRate*1000*this.state.refreshRateUnit);
     });
   }
 
@@ -575,10 +638,48 @@ export class Main extends React.Component {
           </EuiFormRow>
         </EuiFlexItem>
         <EuiFlexItem>
-          <EuiFormRow label="Oldest date:">
-            <EuiDatePicker selected={this.state.selectedOldestDate} onChange={(date) => this.handleSelectedOldestDate(date)} />
+          <EuiFormRow label="Date range:">
+          <EuiDatePickerRange
+        startDateControl={
+          <EuiDatePicker
+            selected={this.state.startDate}
+            onChange={(moment) => this.handleStartDate(moment)}
+            startDate={this.state.startDate}
+            endDate={this.state.endDate}
+            isInvalid={this.state.startDate > this.state.endDate}
+            aria-label="Start date"
+            showTimeSelect
+          />
+        }
+        endDateControl={
+          <EuiDatePicker
+            selected={this.state.endDate}
+            onChange={(moment) => this.handleEndDate(moment)}
+            startDate={this.state.startDate}
+            endDate={this.state.endDate}
+            isInvalid={this.state.startDate > this.state.endDate}
+            aria-label="End date"
+            showTimeSelect
+          />
+        }
+      />
+            {/* <EuiDatePicker selected={this.state.selectedOldestDate} onChange={(date) => this.handleSelectedOldestDate(date)} /> */}
           </EuiFormRow>
         </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+              <EuiFormRow label="Refresh rate:">
+                <EuiFieldNumber
+                  placeholder="Refresh rate"
+                  onChange={(e) => this.onChangeRefreshRate(e)}
+                />
+                </EuiFormRow>
+        </EuiFlexItem>
+        <EuiFlexItem grow={false}>
+              <EuiFormRow label="Refresh rate unit:">
+              <EuiSelect options={timeUnits} onChange={e => this.onChangeRefreshRateUnit(e)}>
+                </EuiSelect>
+                </EuiFormRow>
+              </EuiFlexItem>
         <EuiFlexItem>
           <EuiButton
                           style={{
@@ -608,7 +709,15 @@ export class Main extends React.Component {
   }
 
   isNotReadyToStart() {
-    return this.state.size <= 0 || this.state.selectedIdProperty === '' && !(this.state.selectedDateProperty !== '' && this.state.selectedOldestDate == null);
+    if(this.state.size <= 0 
+      || 
+      this.state.selectedIdProperty === ''){
+        return true;
+    }else if(this.state.selectedDateProperty !== ''){
+      return this.state.startDate == null || this.state.endDate == null || this.state.refreshRate <=0 || this.state.refreshRateUnit <=0;
+    } else{
+      return false;
+    }
   }
 
   renderAxes(indexProperties){
@@ -645,19 +754,11 @@ export class Main extends React.Component {
                 </EuiFormRow>
               </EuiFlexItem>
               <EuiFlexItem grow={false}>
-              <EuiFormRow label="Refresh data">
-                <EuiFieldNumber
-                  placeholder="Seconds to refresh"
-                  onChange={(e) => this.onChangeRefreshSeconds(e)}
-                />
-                </EuiFormRow>
-              </EuiFlexItem>
-              <EuiFlexItem grow={false}>
                 <EuiButton
-                style={{
-    marginTop: 'auto',
-    padding: '1.5em'
-}}
+                  style={{
+                        marginTop: 'auto',
+                        padding: '1.5em'
+                        }}
                   size="s"
                   isDisabled={this.state.selectedIndexName === ''}
                   fill
@@ -699,7 +800,7 @@ export class Main extends React.Component {
       </EuiFlexItem>
       </EuiFlexGroup>
       <EuiFlexGroup justifyContent="spaceAround">
-      <EuiFlexItem grow={false}>
+      <EuiFlexItem grow={true}>
         {this.renderAllIndexProperties(allProperties, dateProperties)}
         </EuiFlexItem>
       </EuiFlexGroup>
@@ -719,7 +820,14 @@ export class Main extends React.Component {
       var idPropertyLabel = allProperties.filter(property=>property.id===this.state.selectedIdProperty)[0].label
       return(
       <EuiPanel style={{margin: '2em 2em 2em 2em'}}>
-      <EuiFlexGroup justifyContent="spaceAround">
+      <EuiFlexGroup>
+      <EuiFlexItem  grow={false}>
+      <EuiButtonIcon
+          onClick={() => {this.setState({allNeededPropertiesSetted: false})}}
+          iconType="arrowLeft"
+          aria-label="Back"
+        />
+      </EuiFlexItem>
     <EuiFlexItem grow={false}>
     <EuiTitle size="l">
       <h2>Index - {this.state.selectedIndexName}</h2>
@@ -746,7 +854,7 @@ export class Main extends React.Component {
     return (
       <div>
       <EuiSpacer />
-      <EuiPanel style={{marginLeft:'10em', marginRight:'10em'}}>
+      <EuiPanel style={{marginLeft:'0.5em', marginRight:'0.5em'}}>
       {this.renderConfiguration()}
       <EuiSpacer></EuiSpacer>
       {this.renderPropertiesConfiguration(allProperties, dateProperties)}
