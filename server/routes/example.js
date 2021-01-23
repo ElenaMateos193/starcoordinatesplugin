@@ -63,5 +63,23 @@ export default function (server){
       return {body: resp, query: range}
     }
   });
+
+  server.route({
+    path:'/api/starcoordinates/example/getFieldValues',
+    method: 'GET',
+    handler: async function (req, res){
+      let resp = {}
+      try{
+        let searchParameter = {
+          index: req.query.index,
+          body:{aggs:{fieldValues:{terms: {field:req.query.fieldName, size:200}}}}
+        }
+        resp = await callWithRequest(req, 'search', searchParameter)
+      } catch (errResp){
+        resp = errResp
+      }
+      return {body: resp}
+    }
+  });
  }
   

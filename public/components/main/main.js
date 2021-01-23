@@ -20,6 +20,7 @@ import {
   EuiOverlayMask,
   EuiButtonIcon,
   EuiDatePickerRange,
+  EuiColorPicker
 } from '@elastic/eui';
 
 const numericEsTypes = ["long", "integer", "short", "double", "float", "half_float", "scaled_float"];
@@ -69,6 +70,13 @@ function numberUnitToMomentUnit(number){
   return momentUnit;
 }
 
+function transformPropertiesToOptions(list){
+  var options = [];
+  options.push({value: '', text: 'Select'});
+  list.forEach(index => options.push({value: index.id, text:index.label}));
+
+  return options;
+}
 const planeOrigin = new Point(500, 375);
 
 class CoordinatePlane extends React.Component{
@@ -79,6 +87,11 @@ class CoordinatePlane extends React.Component{
       activeAxis: "",
       manuallyChangedAxesEndPointsList: [],
       showPointHoverModal: false,
+      showColorCodeHoverModal: false,
+      colorCodeField: '',
+      colorCodeFieldValues: [],
+      colorCodeFieldValue: '',
+      color: '',
       pointHoverPropertiesSet: [],
       pointHoverPropertiesIdToSelectedMap: {}
     };
@@ -140,7 +153,16 @@ class CoordinatePlane extends React.Component{
       var pointCoordinates = math.subset(matrix, math.index([0,1], n));
       var newPoint = new Point(pointCoordinates[0][0], pointCoordinates[1][0]);
       newPoint = this.rotationOfCartessianAxes(newPoint, planeOrigin);
-      points.push(this.renderPoint(id, newPoint));
+      var colorCode = false;
+      if(this.state.colorCodeField !== '' && this.state.colorCodeField != undefined){
+        var pointData = this.props.indexDocs.filter(doc => doc[this.props.idProperty]=== id)[0];
+        var pointColorFieldValue = pointData[this.state.colorCodeField];
+        colorCode = pointColorFieldValue === this.state.colorCodeFieldValue;
+        if(!colorCode && Array.isArray(pointColorFieldValue)){
+          colorCode = pointColorFieldValue.filter(value => value === this.state.colorCodeFieldValue).length > 0;
+        }
+      }
+      points.push(this.renderPoint(id, newPoint, colorCode));
       n++;
     });
     return points;
@@ -167,7 +189,7 @@ class CoordinatePlane extends React.Component{
     return tag;
   }
 
-  renderPoint(key, point){
+  renderPoint(key, point, colorCode){
     var pointData= this.props.indexDocs.filter(doc => doc[this.props.idProperty]=== key)[0];
     var data = '';
     if(pointData && this.state.pointHoverPropertiesSet.length>0){
@@ -175,9 +197,13 @@ class CoordinatePlane extends React.Component{
         data = data + ' ' + property + ': ' + pointData[property];
       });
     }
+    var stroke = "green";
+    if(colorCode){
+      stroke = this.state.color;
+    }
     var point = (
       <svg key={key + 'Svg'}>
-      <circle key={key} cx={point.x} cy={point.y} stroke={"green"} strokeWidth={"3"} r={"1.5"} />
+      <circle key={key} cx={point.x} cy={point.y} stroke={stroke} strokeWidth={"3"} r={"1.5"} />
       <title>{data}</title>
       </svg>
     );
@@ -283,7 +309,7 @@ class CoordinatePlane extends React.Component{
         <div style={{display: 'flex', justifyContent: 'right', marginTop: '0.5em'}}>
         <EuiButton style={{marginRight:'0.5em'}} onClick={() => this.resetAxes()} fill>Reset Axes</EuiButton>
         {this.renderPointHoverOption()}
-        
+        {this.renderColorCodeHoverOption()}
         </div>
       </div>);
   }
@@ -332,7 +358,77 @@ class CoordinatePlane extends React.Component{
     }
     return (
       <div>
-        <EuiButton onClick={()=> this.setState({showPointHoverModal: true})} fill>Point hover</EuiButton>
+        <EuiButton style={{marginRight:'0.5em'}} onClick={()=> this.setState({showPointHoverModal: true})} fill>Point hover</EuiButton>
+        {modal}
+      </div>
+    );
+  }
+
+  onChangeColorCodeHoverField(e){
+    var field = e.target.value;
+    this.setState({
+      colorCodeField: field
+    });
+    var url = '../api/starcoordinates/example/getFieldValues?index=' 
+              + this.props.indexName
+              + '&fieldName=' + field;
+    this.props.httpClient.get(url).then((resp)=>{
+      var values = resp.data.body.aggregations.fieldValues.buckets.map(function(bucket){return {value: bucket["key"], text:bucket["key"]};})
+      values.unshift({value: '', text: 'Select'});
+      this.setState({
+        colorCodeFieldValues: values
+      });
+    });
+  }
+
+  onChangeColorCodeHoverFieldValue(e){
+    var value = e.target.value;
+    this.setState({
+      colorCodeFieldValue: value
+    });
+  }
+
+  onChangeColorCodeHoverColor(color){
+    this.setState({
+      color: color
+    });
+  }
+
+  renderColorCodeHoverOption(){
+    var modal;
+    var nonNumericProperties = this.props.nonNumericProperties.slice();
+    if (this.state.showColorCodeHoverModal) {
+      modal = (
+        <EuiOverlayMask>
+          <EuiModal onClose={()=> this.setState({showColorCodeHoverModal: false})} initialFocus="[name=popswitch]">
+            <EuiModalHeader>
+              <EuiModalHeaderTitle>Color coding</EuiModalHeaderTitle>
+            </EuiModalHeader>
+            <EuiModalBody>
+              <EuiFormRow label="Field">
+                <EuiSelect 
+                options={nonNumericProperties}
+                value={this.state.colorCodeField}
+                onChange={(e) => (this.onChangeColorCodeHoverField(e))}></EuiSelect>
+              </EuiFormRow>
+              <EuiFormRow label="Value">
+                <EuiSelect 
+                isLoading = {this.state.colorCodeFieldValues === []}
+                value={this.state.colorCodeFieldValue}
+                options={this.state.colorCodeFieldValues}
+                onChange={(e) => (this.onChangeColorCodeHoverFieldValue(e))}></EuiSelect>
+              </EuiFormRow>
+              <EuiFormRow label="Color">
+                <EuiColorPicker color={this.state.color} onChange={(color)=> this.onChangeColorCodeHoverColor(color)}/>
+              </EuiFormRow>
+            </EuiModalBody>
+          </EuiModal>
+        </EuiOverlayMask>
+      );
+    }
+    return (
+      <div>
+        <EuiButton onClick={()=> this.setState({showColorCodeHoverModal: true})} fill>Field Color Coding</EuiButton>
         {modal}
       </div>
     );
@@ -408,14 +504,6 @@ export class Main extends React.Component {
     var options = [];
     options.push({value: '', text: 'Select'});
     list.forEach(index => options.push({value: index, text:index}));
-
-    return options;
-  }
-
-  transformPropertiesToOptions(list){
-    var options = [];
-    options.push({value: '', text: 'Select'});
-    list.forEach(index => options.push({value: index.id, text:index.label}));
 
     return options;
   }
@@ -602,6 +690,16 @@ export class Main extends React.Component {
           position ++;
         }
       }
+      else if(onlyNumeric === 3){
+        if(!numericEsTypes.includes(index.mappings.properties[property].type) && index.mappings.properties[property].type !== "date"){
+          properties.push({
+            id: property,
+            label : property,
+            position: position
+          });
+          position ++;
+        }
+      }
       else{
         properties.push({
           id: property + '-Property',
@@ -620,7 +718,7 @@ export class Main extends React.Component {
       return(<EuiFlexGroup>
         <EuiFlexItem>
         <EuiFormRow label="Point id">
-          <EuiSelect options={this.transformPropertiesToOptions(allProperties)} onChange={e => this.onChangeSelectIdProperty(e)}>
+          <EuiSelect options={transformPropertiesToOptions(allProperties)} onChange={e => this.onChangeSelectIdProperty(e)}>
           </EuiSelect>
           </EuiFormRow>
         </EuiFlexItem>
@@ -633,7 +731,7 @@ export class Main extends React.Component {
         </EuiFlexItem>
         <EuiFlexItem>
         <EuiFormRow label="Date range field (optional):" >
-          <EuiSelect options={this.transformPropertiesToOptions(dateProperties)} onChange={e => this.onChangeSelectDateProperty(e)}>
+          <EuiSelect options={transformPropertiesToOptions(dateProperties)} onChange={e => this.onChangeSelectDateProperty(e)}>
           </EuiSelect>
           </EuiFormRow>
         </EuiFlexItem>
@@ -815,8 +913,11 @@ export class Main extends React.Component {
     var allProperties;
     var properties = Object.keys(this.state.selectedIndex);
     if(this.state.allNeededPropertiesSetted){
+      const {httpClient} = this.props;
       var numericProperties = this.getProperties(1);
       allProperties = this.getProperties(0);
+      var nonNumericProperties = this.getProperties(3);
+      var transformedNonNumericProperties = transformPropertiesToOptions(nonNumericProperties);
       var idPropertyLabel = allProperties.filter(property=>property.id===this.state.selectedIdProperty)[0].label
       return(
       <EuiPanel style={{margin: '2em 2em 2em 2em'}}>
@@ -837,7 +938,7 @@ export class Main extends React.Component {
     <EuiSpacer></EuiSpacer>
         <EuiFlexGroup>
           <EuiFlexItem>
-            <CoordinatePlane  normalize={this.state.selectedNormalization} idProperty={idPropertyLabel} axesCheckboxes = {this.state.checkboxesAxesSet} indexProperties={allProperties} indexDocs={this.state.selectedIndexDocs}></CoordinatePlane>
+            <CoordinatePlane httpClient={httpClient} indexName={this.state.selectedIndexName} nonNumericProperties={transformedNonNumericProperties} normalize={this.state.selectedNormalization} idProperty={idPropertyLabel} axesCheckboxes = {this.state.checkboxesAxesSet} indexProperties={allProperties} indexDocs={this.state.selectedIndexDocs}></CoordinatePlane>
           </EuiFlexItem>
           {this.renderAxes(numericProperties)}
         </EuiFlexGroup>
