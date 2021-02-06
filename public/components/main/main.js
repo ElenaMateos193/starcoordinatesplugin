@@ -271,25 +271,29 @@ class CoordinatePlane extends React.Component{
       }
     );
     
-    var matrixAndIds = this.transformDataToMatrix(this.props.indexDocs, axesCheckboxesArray, this.props.idProperty);
+    if(this.props.indexDocs.length >0){
+    
+      var matrixAndIds = this.transformDataToMatrix(this.props.indexDocs, axesCheckboxesArray, this.props.idProperty);
 
-    var originalMatrix = matrixAndIds.Matrix;
+      var originalMatrix = matrixAndIds.Matrix;
 
-    if(this.props.normalize){
-      var normalizedMatrix = []
-      if(this.props.normalize === "1"){
-        normalizedMatrix = this.minMaxNormalization(originalMatrix);
-        originalMatrix = normalizedMatrix;
+      if(this.props.normalize){
+        var normalizedMatrix = []
+        if(this.props.normalize === "1"){
+          normalizedMatrix = this.minMaxNormalization(originalMatrix);
+          originalMatrix = normalizedMatrix;
+        }
+        else if(this.props.normalize === "2"){
+          normalizedMatrix = this.normalDistribution(originalMatrix);
+          originalMatrix = normalizedMatrix;
+        }
       }
-      else if(this.props.normalize === "2"){
-        normalizedMatrix = this.normalDistribution(originalMatrix);
-        originalMatrix = normalizedMatrix;
-      }
+      
+      var pointsToRender = this.changeto2Dimensions(originalMatrix, axesMatrix);
+
+      points = this.transformToPoints(pointsToRender, matrixAndIds.Ids);
     }
 
-    var pointsToRender = this.changeto2Dimensions(originalMatrix, axesMatrix);
-
-    points = this.transformToPoints(pointsToRender, matrixAndIds.Ids);
     return(
       <div>
        <UncontrolledReactSVGPanZoom
@@ -537,9 +541,12 @@ export class Main extends React.Component {
   }
 
   onChangeRefreshRateUnit(unit){
-    this.setState({
-      refreshRateUnit: unit.target.value
-    });
+    if(unit.target.value !== ""){
+      var number = parseInt(unit.target.value);
+      this.setState({
+        refreshRateUnit: number
+      });
+    }
   }
 
   onChangeSelectIdProperty(property){
@@ -607,14 +614,12 @@ export class Main extends React.Component {
     
     var url = '../api/starcoordinates/example/get?index=' + this.state.selectedIndexName + '&size=' + this.state.size;
     if(this.state.selectedDateProperty !== ''){
-      var startDate = this.state.startDate;
-      var endDate = this.state.endDate;
-      var momentUnit = numberUnitToMomentUnit(this.state.refreshRateUnit);
       if(isRefresh){
-        startDate = startDate.add(this.state.refreshRateUnit, momentUnit);
-        endDate = endDate.add(this.state.refreshRateUnit, momentUnit);
+        var momentUnit = numberUnitToMomentUnit(this.state.refreshRateUnit);
+        this.setState({startDate: this.state.startDate.add(this.state.refreshRate, momentUnit)});
+        this.setState({endDate: this.state.endDate.add(this.state.refreshRate, momentUnit)});
       }
-      url = url + '&dateFieldName=' + this.state.selectedDateProperty + '&startDate=' + startDate.format("YYYY-MM-DDTHH:mm:ssZ") + '&endDate=' + endDate.format("YYYY-MM-DDTHH:mm:ssZ");
+      url = url + '&dateFieldName=' + this.state.selectedDateProperty + '&startDate=' + this.state.startDate.format("YYYY-MM-DDTHH:mm:ss.SSS") + '&endDate=' + this.state.endDate.format("YYYY-MM-DDTHH:mm:ss.SSS");
     }
     httpClient.get(url).then((resp) => {
       console.log(resp);
@@ -625,7 +630,7 @@ export class Main extends React.Component {
       });
       this.setState({selectedIndexDocs: docs});
       if(this.state.refreshDataEnabled && this.state.refreshRate > 0)
-        this.intervalID = setTimeout(this.getDocsFromES.bind(this), this.state.refreshRate*1000*this.state.refreshRateUnit);
+        this.intervalID = setTimeout(this.getDocsFromES.bind(this, true), this.state.refreshRate*1000*this.state.refreshRateUnit);
     });
   }
 
