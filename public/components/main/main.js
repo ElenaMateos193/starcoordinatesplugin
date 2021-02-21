@@ -166,13 +166,13 @@ export class Main extends React.Component {
       }
       else{
         this.setState({
-          refreshDataEnabled:false
+          refreshDataEnabled:false, refreshRate: null
         });
       }
     }
     else{
       this.setState({
-        refreshDataEnabled:false
+        refreshDataEnabled:false, refreshRate: null
       });
     }
   }
@@ -287,7 +287,7 @@ export class Main extends React.Component {
             </EuiFormRow>
           </EuiFlexItem>
           <EuiFlexItem>
-            <EuiFormRow label="Date range:">
+            <EuiFormRow label="Date range for date field (optional):">
               <EuiDatePickerRange
                 startDateControl={
                   <EuiDatePicker
@@ -315,16 +315,16 @@ export class Main extends React.Component {
             </EuiFormRow>
           </EuiFlexItem>
           <EuiFlexItem grow={false}>
-            <EuiFormRow label="Refresh rate:">
+            <EuiFormRow label="Refresh rate (optional):">
               <EuiFieldNumber
                 value={this.state.refreshRate}
                 placeholder="Refresh rate"
-                onChange={(e) => this.onChangeRefreshRate(e)}
-              />
+                onChange={(e) => this.onChangeRefreshRate(e)}>
+              </EuiFieldNumber>
             </EuiFormRow>
           </EuiFlexItem>
           <EuiFlexItem grow={false}>
-            <EuiFormRow label="Refresh rate unit:">
+            <EuiFormRow label="Refresh rate unit (optional):">
               <EuiSelect 
                 value={this.state.refreshRateUnit} 
                 options={timeUnits} 
@@ -366,14 +366,25 @@ export class Main extends React.Component {
       || 
       this.state.selectedIdProperty === ''){
         return true;
-    }else if(this.state.selectedDateProperty !== ''){
+    }
+    else if(this.state.refreshRate >0 || 
+      this.state.refreshRateUnit >0){
       return(
-              this.state.startDate == null || 
-              this.state.endDate == null || 
-              this.state.refreshRate <=0 || 
+        this.state.selectedDateProperty === '' ||
+        this.state.startDate == null || 
+              this.state.endDate == null ||
+        this.state.refreshRate <=0 || 
               this.state.refreshRateUnit <=0
       );
-    } else{
+    }
+    else if(this.state.selectedDateProperty !== ''){
+      return(
+              this.state.startDate == null || 
+              this.state.endDate == null             
+      );
+    } 
+    
+    else{
       return false;
     }
   }
