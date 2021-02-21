@@ -3,6 +3,8 @@ import * as math from 'mathjs';
 import {UncontrolledReactSVGPanZoom} from 'react-svg-pan-zoom';
 import {
   EuiCheckboxGroup,
+  EuiTitle,
+  EuiSpacer,
   EuiButton,
   EuiSelect,
   EuiFormRow,
@@ -13,7 +15,6 @@ import {
   EuiOverlayMask,
   EuiColorPicker
 } from '@elastic/eui';
-import { norm } from 'mathjs';
 
 class Point {
     constructor(x, y){
@@ -120,9 +121,8 @@ export class CoordinatePlane extends React.Component{
       var cartessianAxis = this.rotationOfCartessianAxes(axisEndPoint, new Point(-planeOrigin.x, -planeOrigin.y));
       var axis = (
         <svg  key={key + 'Svg'}>
-        <line onClick={(e) => this.handleAxisClick(key, e)} key={key} x1={planeOrigin.x} y1={planeOrigin.y} x2={axisEndPoint.x} y2={axisEndPoint.y} style={{stroke:'rgb(255,0,0)', strokeWidth:'5'}} >
-        </line>
-        <title>{key + '. x: ' + Math.trunc(cartessianAxis.x) + ' y: ' + Math.trunc(0-cartessianAxis.y)}</title>
+          <line onClick={(e) => this.handleAxisClick(key, e)} key={key} x1={planeOrigin.x} y1={planeOrigin.y} x2={axisEndPoint.x} y2={axisEndPoint.y} style={{stroke:'rgb(255,0,0)', strokeWidth:'5'}} ></line>
+          <title>{key + '. x: ' + Math.trunc(cartessianAxis.x) + ' y: ' + Math.trunc(0-cartessianAxis.y)}</title>
         </svg>
       );
       return axis;
@@ -151,8 +151,8 @@ export class CoordinatePlane extends React.Component{
       }
       var point = (
         <svg key={key + 'Svg'}>
-        <circle key={key} cx={point.x} cy={point.y} stroke={stroke} strokeWidth={"3"} r={"1.5"} />
-        <title>{data}</title>
+          <circle key={key} cx={point.x} cy={point.y} stroke={stroke} strokeWidth={"3"} r={"1.5"} />
+          <title>{data}</title>
         </svg>
       );
       return point;
@@ -160,7 +160,9 @@ export class CoordinatePlane extends React.Component{
   
     handleAxisClick(key, e){
       e.stopPropagation(); 
-      this.setState({activeAxis: key});
+      this.setState({
+        activeAxis: key
+      });
       console.log(this.state.activeAxis);
     }
   
@@ -244,26 +246,50 @@ export class CoordinatePlane extends React.Component{
   
       return(
         <div>
-         <UncontrolledReactSVGPanZoom
+          <UncontrolledReactSVGPanZoom
             width={planeOrigin.x*2} height={planeOrigin.y*2}
             ref={Viewer => this.Viewer = Viewer}
             onClick={(e) => this.handleRepositioningClick(e)}
             style={{backgroundColor:'#ededed'}}
           >
-          <svg width={planeOrigin.x*2} height={planeOrigin.y*2} style={{overflow:'visible'}}>
-            <line onClick={(e) => this.handleRepositioningClick(e)} key={"xcoordinate"} x1="0" y1={planeOrigin.y} x2={planeOrigin.x*2} y2={planeOrigin.y} style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
-            <line onClick={(e) => this.handleRepositioningClick(e)} key={"ycoordinate"} x1={planeOrigin.x} y1="0" x2={planeOrigin.x} y2={planeOrigin.y*2} style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
-            {axes}
-            {points}
-            {/* {tags} */}
-          </svg>
+            <svg width={planeOrigin.x*2} height={planeOrigin.y*2} style={{overflow:'visible'}}>
+              <line 
+                onClick={(e) => this.handleRepositioningClick(e)} 
+                key={"xcoordinate"} 
+                x1="0" 
+                y1={planeOrigin.y} 
+                x2={planeOrigin.x*2} 
+                y2={planeOrigin.y} 
+                style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
+              <line 
+                onClick={(e) => this.handleRepositioningClick(e)} 
+                key={"ycoordinate"} 
+                x1={planeOrigin.x} 
+                y1="0" 
+                x2={planeOrigin.x} 
+                y2={planeOrigin.y*2} 
+                style={{stroke:'rgb(0,0,0)', strokeWidth:'2'}}/>
+              {axes}
+              {points}
+              {/* {tags} */}
+            </svg>
           </UncontrolledReactSVGPanZoom>
-          <div style={{display: 'flex', justifyContent: 'right', marginTop: '0.5em'}}>
-          <EuiButton style={{marginRight:'0.5em'}} onClick={() => this.resetAxes()} fill>Reset Axes</EuiButton>
-          {this.renderPointHoverOption()}
-          {this.renderColorCodeHoverOption()}
+          <div style={{display: 'flex', justifyContent: 'center', marginTop: '1em'}}>
+            <EuiTitle size="s">
+              <h3>Tools</h3>
+            </EuiTitle>
           </div>
-        </div>);
+          <div style={{display: 'flex', justifyContent: 'center', marginTop: '0.5em'}}>
+            <EuiButton 
+              style={{marginRight:'0.5em'}} 
+              onClick={() => this.resetAxes()} fill>
+              Reset Axes
+            </EuiButton>
+            {this.renderPointHoverOption()}
+            {this.renderColorCodeHoverOption()}
+          </div>
+        </div>
+      );
     }
   
     onChangePointHoverProperties(optionId){
@@ -300,17 +326,25 @@ export class CoordinatePlane extends React.Component{
               <EuiModalHeader>
                 <EuiModalHeaderTitle>Point Hover Configuration</EuiModalHeaderTitle>
               </EuiModalHeader>
-    
-              <EuiModalBody><EuiCheckboxGroup options={indexPropertiesCopy}
-                idToSelectedMap={this.state.pointHoverPropertiesIdToSelectedMap}
-                onChange={(optionId) => (this.onChangePointHoverProperties(optionId))}></EuiCheckboxGroup></EuiModalBody>
+              <EuiModalBody>
+                <EuiCheckboxGroup 
+                  options={indexPropertiesCopy}
+                  idToSelectedMap={this.state.pointHoverPropertiesIdToSelectedMap}
+                  onChange={(optionId) => (this.onChangePointHoverProperties(optionId))}>
+                </EuiCheckboxGroup>
+              </EuiModalBody>
             </EuiModal>
           </EuiOverlayMask>
         );
       }
       return (
         <div>
-          <EuiButton style={{marginRight:'0.5em'}} onClick={()=> this.setState({showPointHoverModal: true})} fill>Point hover</EuiButton>
+          <EuiButton 
+            style={{marginRight:'0.5em'}} 
+            onClick={()=> this.setState({showPointHoverModal: true})} 
+            fill>
+            Point hover
+          </EuiButton>
           {modal}
         </div>
       );
@@ -321,9 +355,11 @@ export class CoordinatePlane extends React.Component{
       this.setState({
         colorCodeField: field
       });
-      var url = '../api/starcoordinates/example/getFieldValues?index=' 
+
+      var url = '../api/starcoordinates/elasticsearchProvider/getFieldValues?index=' 
                 + this.props.indexName
                 + '&fieldName=' + field;
+
       this.props.httpClient.get(url).then((resp)=>{
         var values = resp.data.body.aggregations.fieldValues.buckets.map(function(bucket){return {value: bucket["key"], text:bucket["key"]};})
         values.unshift({value: '', text: 'Select'});
@@ -359,16 +395,18 @@ export class CoordinatePlane extends React.Component{
               <EuiModalBody>
                 <EuiFormRow label="Field">
                   <EuiSelect 
-                  options={nonNumericProperties}
-                  value={this.state.colorCodeField}
-                  onChange={(e) => (this.onChangeColorCodeHoverField(e))}></EuiSelect>
+                    options={nonNumericProperties}
+                    value={this.state.colorCodeField}
+                    onChange={(e) => (this.onChangeColorCodeHoverField(e))}>
+                  </EuiSelect>
                 </EuiFormRow>
                 <EuiFormRow label="Value">
                   <EuiSelect 
-                  isLoading = {this.state.colorCodeFieldValues === []}
-                  value={this.state.colorCodeFieldValue}
-                  options={this.state.colorCodeFieldValues}
-                  onChange={(e) => (this.onChangeColorCodeHoverFieldValue(e))}></EuiSelect>
+                    isLoading = {this.state.colorCodeFieldValues === []}
+                    value={this.state.colorCodeFieldValue}
+                    options={this.state.colorCodeFieldValues}
+                    onChange={(e) => (this.onChangeColorCodeHoverFieldValue(e))}>
+                  </EuiSelect>
                 </EuiFormRow>
                 <EuiFormRow label="Color">
                   <EuiColorPicker color={this.state.color} onChange={(color)=> this.onChangeColorCodeHoverColor(color)}/>
@@ -380,7 +418,11 @@ export class CoordinatePlane extends React.Component{
       }
       return (
         <div>
-          <EuiButton onClick={()=> this.setState({showColorCodeHoverModal: true})} fill>Field Color Coding</EuiButton>
+          <EuiButton 
+            onClick={()=> this.setState({showColorCodeHoverModal: true})} 
+            fill>
+            Field Color Coding
+          </EuiButton>
           {modal}
         </div>
       );

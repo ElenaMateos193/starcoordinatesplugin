@@ -3,7 +3,7 @@ export default function (server){
   const {callWithRequest} = server.plugins.elasticsearch.getCluster('data');
 
   server.route({
-    path:'/api/starcoordinates/example/getIndices',
+    path:'/api/starcoordinates/elasticsearchProvider/getIndices',
     method: 'GET',
     handler: async function (req, res){
       let resp = {}
@@ -20,7 +20,7 @@ export default function (server){
   });
 
   server.route({
-    path:'/api/starcoordinates/example/getIndexInfo/{index}',
+    path:'/api/starcoordinates/elasticsearchProvider/getIndexInfo/{index}',
     method: 'GET',
     handler: async function (req, res){
       var index = req.params.index
@@ -37,7 +37,7 @@ export default function (server){
   });
 
   server.route({
-    path:'/api/starcoordinates/example/get',
+    path:'/api/starcoordinates/elasticsearchProvider/get',
     method: 'GET',
     handler: async function (req, res){
       let resp = {}
@@ -65,7 +65,7 @@ export default function (server){
   });
 
   server.route({
-    path:'/api/starcoordinates/example/getFieldValues',
+    path:'/api/starcoordinates/elasticsearchProvider/getFieldValues',
     method: 'GET',
     handler: async function (req, res){
       let resp = {}

@@ -1,6 +1,6 @@
 import { resolve } from 'path';
 import { existsSync } from 'fs';
-import exampleRoute from './server/routes/example';
+import elasticsearchProviderRoute from './server/routes/elasticsearchProvider';
 
 import { i18n } from '@kbn/i18n';
 
@@ -57,7 +57,7 @@ export default function(kibana) {
           },
         });
       }
-      exampleRoute(server);
+      elasticsearchProviderRoute(server);
     },
   });
 }
